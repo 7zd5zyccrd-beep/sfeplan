@@ -2,7 +2,7 @@
 <html lang="de">
 <!--
   SF E-Plan
-  v1.0 · 01.09.2026
+  v1.32 · 02.09.2026
 
   Änderungsliste
   v1.0  Stufe 1: DWG einlesen, Plan dauerhaft ablegen, mehrere Pläne
@@ -125,6 +125,39 @@
         mit Verweis. Voransicht in der App, Weitergabe als HTML über das
         Teilen-Menü wie bei den Nachweisen. Die Empfängeradresse steht im
         Dateinamen hinter "__" und wird in den Einstellungen gepflegt.
+  v1.29 Schaltzeichen nach den beiden Vorlagen neu gezeichnet. Die
+        Schmelzsicherung ist nur noch das Rechteck auf dem Leiter; was
+        schräg hindurchläuft, ist der Polstrich mit der Ziffer. Der
+        Schließerkontakt ist gespiegelt, weil die Abgänge nach rechts
+        laufen: Gelenk auf der Verbraucherseite, der bewegliche Teil
+        hebt nach links oben ab. Darauf steht der Auslöserpfeil, beim
+        FI mit kleinem T über der Spitze, beim FI/LS ein zweiter Pfeil
+        ohne T. Der Polstrich läuft durch das Zeichen statt davor, der
+        Aderstrich sitzt jetzt kurz vor dem Kasten. Beschriftung
+        einheitlich: waagerecht einzeilig mittig unter dem Zeichen,
+        senkrecht zweizeilig rechts daneben; FI und FI/LS ohne
+        Gerätenamen, dafür mit Nennstrom. Zeilenabstand 100 statt 76,
+        erste Abgangszeile bei 140.
+  v1.30 Der Titelblock über den Blättern ist entfallen, seine Angaben
+        stehen schon in der Blattzeile; der Stand mit Datum sitzt jetzt
+        dort neben der Blattzählung. Neben der Zuleitungssicherung steht
+        statt des Wortes "Zuleitung" die Herkunft. Der erste Abgang einer
+        RCD-Gruppe läuft auf der Zeile des RCD weiter, die Leitung geht
+        also ohne Knick durch; Untersammelschiene und Abzweigpunkt
+        erscheinen nur, wenn mehr als ein Abgang folgt. Das spart je
+        Gruppe eine Zeile.
+  v1.31 Die Fußzeile unter den Blättern ist entfallen.
+  v1.32 Zwei Geräte hintereinander: Abgang und RCD-Gruppe haben ein
+        freilassbares Feld für ein vorgeschaltetes Gerät. Damit sind
+        einzelne Abgänge mit eigenem FI und eigener Sicherung sowie
+        Gruppen mit gemeinsamer Vorsicherung vor dem gemeinsamen FI
+        darstellbar; die Art ist frei wählbar, "ohne" leert das Feld.
+        Im Blatt wachsen die Spalten mit: gibt es nirgends ein
+        vorgeschaltetes Gerät, steht alles wie bisher. Sonst rücken
+        Untersammelschiene und Kasten nach rechts, der Kasten wird
+        entsprechend schmaler, und gleichartige Geräte stehen weiter
+        untereinander. Reicht der Platz vor dem Kasten nicht mehr,
+        entfällt dort der Aderstrich.
 -->
 <head>
 <meta charset="utf-8">
@@ -487,7 +520,7 @@
 <script type="module">
 "use strict";
 
-const FASSUNG = "v1.28 · 01.09.2026";
+const FASSUNG = "v1.32 · 02.09.2026";
 
 /* ================================================================== */
 /* 1 · Kleinkram                                                       */
@@ -604,6 +637,13 @@ function sicherungText(s){
   else if (s.strom) t += " " + s.strom + " A";
   if (s.ma) t += ", " + s.ma + " mA";
   return t;
+}
+
+/* Ein Abgang oder eine Gruppe kann ein freilassbares vorgeschaltetes
+   Gerät führen. Steht eines da, wird die Kette mit Pfeil geschrieben. */
+const hatGeraet = (s) => !!(s && s.art && s.art !== "ohne");
+function kettenText(o){
+  return (hatGeraet(o.vor) ? sicherungText(o.vor) + " → " : "") + sicherungText(o.sicherung);
 }
 
 /* Eigenes Fenster, weil die Felder von der Art abhängen. */
@@ -2657,7 +2697,7 @@ function uvZeichnen(){
     const dahinter = UV.abgaenge.filter(a => a.rcd === r.id).length;
     ziel.appendChild(zeile({
       oben: r.name,
-      unten: sicherungText(r.sicherung) + " · " +
+      unten: kettenText(r) + " · " +
              (dahinter === 1 ? "1 Abgang" : dahinter + " Abgänge"),
       beiKlick: () => rcdBearbeiten(r),
     }));
@@ -2680,7 +2720,7 @@ function uvZeichnen(){
     ziel.appendChild(zeile({
       nr: i+1,
       oben: (a.name || a.art) + " — " + verbraucherText(a),
-      unten: [a.art, sicherungText(a.sicherung), r ? "hinter " + r.name : null]
+      unten: [a.art, kettenText(a), r ? "hinter " + r.name : null]
              .filter(Boolean).join(" · "),
       beiKlick: () => abgangBearbeiten(a),
     }));
@@ -2726,10 +2766,11 @@ async function rcdBearbeiten(r){
   const dahinter = UV.abgaenge.filter(a => a.rcd === r.id).length;
   const a = await formular({
     titel: r.name,
-    text: sicherungText(r.sicherung) + " · " + (dahinter === 1 ? "1 Abgang" : dahinter + " Abgänge"),
+    text: kettenText(r) + " · " + (dahinter === 1 ? "1 Abgang" : dahinter + " Abgänge"),
     felder: [{ art:"text", name:"name", beschriftung:"Bezeichnung", wert:r.name }],
     knoepfe: [{ text:"Übernehmen", wert:"ok" },
               { text:"RCD ändern", wert:"sicherung", art:"leer" },
+              { text:"Vorsicherung ändern", wert:"vorsicherung", art:"leer" },
               { text:"Gruppe löschen", wert:"weg", art:"gefahr" },
               { text:"Abbrechen", wert:null, art:"leer" }],
   });
@@ -2750,6 +2791,11 @@ async function rcdBearbeiten(r){
     if (a.wahl === "sicherung"){
       const s = await sicherungWaehlen(r.sicherung, "RCD der Gruppe");
       if (s) r.sicherung = s;
+    }
+    if (a.wahl === "vorsicherung"){
+      const s = await sicherungWaehlen(r.vor || { art:"gG", kennlinie:null, strom:63, ma:null },
+                                       "Vorsicherung vor dem RCD");
+      if (s) r.vor = hatGeraet(s) ? s : null;
     }
   }
   await merken();
@@ -2938,7 +2984,7 @@ async function abgangBearbeiten(ab){
   const nr = UV.abgaenge.indexOf(ab) + 1;
   const a = await formular({
     titel: "Abgang " + nr,
-    text: sicherungText(ab.sicherung),
+    text: kettenText(ab),
     felder: [
       { art:"text", name:"name", beschriftung:"Bezeichnung", wert:ab.name, platzhalter:"frei lassen für die Art" },
       { art:"wahl", name:"art", beschriftung:"Art", wert:ab.art,
@@ -2954,6 +3000,7 @@ async function abgangBearbeiten(ab){
                   : [{ text:"Verbraucher anschließen", wert:"verbraucher", art:"leer" },
                      { text:"Mobilen Verteiler anschließen", wert:"mobil", art:"leer" }]),
               { text:"Absicherung ändern", wert:"sicherung", art:"leer" },
+              { text:"Vorgeschaltetes Gerät", wert:"vor", art:"leer" },
               { text:"Abgang löschen", wert:"weg", art:"gefahr" },
               { text:"Abbrechen", wert:null, art:"leer" }],
   });
@@ -2978,6 +3025,11 @@ async function abgangBearbeiten(ab){
     if (a.wahl === "sicherung"){
       const s = await sicherungWaehlen(ab.sicherung, "Absicherung des Abgangs");
       if (s) ab.sicherung = s;
+    }
+    if (a.wahl === "vor"){
+      const s = await sicherungWaehlen(ab.vor || { art:"FI", kennlinie:null, strom:40, ma:30 },
+                                       "Vorgeschaltet vor Abgang " + nr);
+      if (s) ab.vor = hatGeraet(s) ? s : null;
     }
     if (a.wahl === "verbraucher"){
       await merken();
@@ -3567,17 +3619,18 @@ const PDF_BREITE = 1130;
 const S_RAND     = 46;
 const S_NUTZ     = BG_BREITE - 2*S_RAND;   // 932
 
-const X_SCHIENE = 62;    // Hauptsammelschiene
-const X_ADER    = 104;   // Schrägstrich mit Aderzahl
-const X_GERAET  = 210;   // Mitte des Schutzorgans
-const X_UNTER   = 340;   // Untersammelschiene einer Gruppe
-const X_GERAET2 = 452;   // Schutzorgan hinter der Untersammelschiene
-const X_KASTEN  = 640;   // linke Kante des Zielrechtecks
-const B_KASTEN  = 286;
-const H_KASTEN  = 36;
+const X_SCHIENE  = 62;    // Hauptsammelschiene
+const X_GERAET   = 210;   // erste Geräte-Spalte
+const SP_SCHRITT = 130;   // Abstand zweier Geräte-Spalten
+const X_RAND     = 926;   // rechte Kante des Zielrechtecks
+const H_KASTEN   = 36;
 
-const Y_KOPF   = 92;     // erste Abgangszeile
-const Y_ZEILE  = 76;
+/* Diese vier hängen davon ab, wie viele Geräte hintereinander stehen.
+   Sie werden je Blatt in schaltbildEinerVerteiler gesetzt. */
+let X_UNTER = 340, X_KASTEN = 640, B_KASTEN = 286, X_ADER = 594;
+
+const Y_KOPF   = 140;    // erste Abgangszeile
+const Y_ZEILE  = 100;
 
 const esc = (t) => String(t == null ? "" : t)
   .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
@@ -3590,38 +3643,68 @@ const T = (x,y,txt,groesse,anker,fett) =>
 
 /* ---- Schaltzeichen ---- */
 
-/* Sicherung: Rechteck sitzt auf dem Leiter, Diagonale hindurch.
-   Der Leiter wird nicht unterbrochen. */
-function symSicherung(x, y){
-  return `<rect x="${x-26}" y="${y-11}" width="52" height="22" fill="#fff" stroke="#000" stroke-width="1.3"/>` +
-         L(x-30, y+13, x+30, y-13, 1.3);
-}
-
-/* Schaltkontakt: der bewegliche Teil hebt sich vom Leiter ab */
-function symKontakt(x, y){
-  return L(x-26, y, x-12, y, 1.3) +
-         L(x-12, y, x+13, y-17, 1.4) +
-         L(x+12, y, x+26, y, 1.3);
-}
-
-/* Auslöserpfeil am Kontaktende */
-function symAusloeser(x, y){
-  return `<path d="M ${x+8} ${y-13} L ${x+16} ${y-19} L ${x+11} ${y-23} Z" fill="#000"/>` +
-         L(x+13, y-25, x+20, y-20, 1.2);
-}
-
-/* Leitungsschutzschalter */
-function symLs(x, y){ return symKontakt(x, y) + symAusloeser(x, y); }
-
-/* FI und FI/LS werden wie ein Schalter gezeichnet; unterschieden werden
-   sie über die Polzahl am Schrägstrich und die Beschriftung. */
-function symRcd(x, y){ return symKontakt(x, y) + symAusloeser(x, y); }
-function symFiLs(x, y){ return symKontakt(x, y) + symAusloeser(x, y); }
-
-/* Schrägstrich mit Ziffer für Adern- oder Polzahl */
-function symZahl(x, y, zahl){
+/* Schrägstrich mit Ziffer, für Polzahl am Gerät und Aderzahl auf der
+   Leitung. Die Neigung bleibt absolut, auch wenn der Leiter senkrecht
+   läuft; die Ziffer steht am oberen Ende. "kurz" kürzt den unteren
+   Schenkel, damit er die Beschriftung unter dem Zeichen nicht berührt. */
+const STR_X = 15, STR_Y = 24, STR_DICK = 0.9, STR_ZIFFER = 11.5, STR_KURZ = 0.75;
+function strich(x, y, zahl, kurz){
   if (!zahl) return "";
-  return L(x-7, y+8, x+7, y-8, 1.2) + T(x+9, y-8, String(zahl), 10.5, "start");
+  const f = kurz ? STR_KURZ : 1;
+  return L(x - STR_X*f, y + STR_Y*f, x + STR_X, y - STR_Y, STR_DICK) +
+         T(x + STR_X + 2, y - STR_Y, String(zahl), STR_ZIFFER, "start");
+}
+
+/* Beschriftung: am waagerechten Leiter einzeilig mittig unter dem
+   Zeichen, am senkrechten zweizeilig rechts daneben. Abstände für alle
+   Zeichen gleich. */
+const BE_ABSTAND = 30, BE_ABSTAND_S = 20, BE_ZEILE = 17, BE_GROESSE = 13.5;
+function beschriftung(x, y, oben, unten, senkrecht){
+  if (!oben && !unten) return "";
+  if (senkrecht){
+    if (!oben) return T(x + BE_ABSTAND_S, y - 3, unten, BE_GROESSE, "start");
+    return T(x + BE_ABSTAND_S, y - 3, oben, BE_GROESSE, "start", true) +
+           T(x + BE_ABSTAND_S, y - 3 + BE_ZEILE, unten || "", BE_GROESSE, "start");
+  }
+  return T(x, y + BE_ABSTAND, [oben, unten].filter(Boolean).join(" "), BE_GROESSE, "middle");
+}
+
+/* Schmelzsicherung: längliches Rechteck auf dem Leiter, der Leiter läuft
+   hindurch. Keine eigene Diagonale – was schräg hindurchläuft, ist der
+   Polstrich. */
+const SICH_LANG = 58, SICH_QUER = 20;
+function symSicherung(x, y, senkrecht){
+  const w = senkrecht ? SICH_QUER : SICH_LANG;
+  const h = senkrecht ? SICH_LANG : SICH_QUER;
+  return `<rect x="${x - w/2}" y="${y - h/2}" width="${w}" height="${h}" fill="none" stroke="#000" stroke-width="1.6"/>`;
+}
+
+/* Schließerkontakt: das Gelenk sitzt auf der Verbraucherseite, der
+   bewegliche Teil hebt nach links oben ab. Der Leiter ist unterbrochen. */
+const K_SPITZE = 16, K_GELENK = 18, K_HOCH = 22;
+function symKontakt(x, y){
+  return L(x + K_GELENK, y, x - K_SPITZE, y - K_HOCH, 1.7);
+}
+/* Höhe des beweglichen Teils an einer Stelle xx */
+function aufBlatt(x, y, xx){
+  return Math.round((y - K_HOCH * ((x + K_GELENK - xx) / (K_GELENK + K_SPITZE))) * 10) / 10;
+}
+
+/* Auslöser: senkrechter Pfeil, steht auf dem beweglichen Teil */
+const PF_LANG = 21, PF_KOPF = 11;
+function pfeil(x, yFuss){
+  const kopf = yFuss - PF_LANG;
+  return L(x, yFuss, x, kopf + PF_KOPF - 1, 1.5) +
+         `<path d="M ${x} ${kopf} L ${x-4.6} ${kopf+PF_KOPF} L ${x+4.6} ${kopf+PF_KOPF} Z" fill="#000"/>`;
+}
+
+/* Fehlerstromauslösung: kleines T dicht über der Pfeilspitze, Balken
+   unten, Stiel nach oben. */
+const T_BREIT = 6.5, T_STIEL = 10, T_LUFT = 2;
+function tZeichen(x, yFuss){
+  const quer = yFuss - PF_LANG - T_LUFT;
+  return L(x - T_BREIT, quer, x + T_BREIT, quer, 1.2) +
+         L(x, quer, x, quer - T_STIEL, 1.2);
 }
 
 /* Zielrechteck mit Beschriftung */
@@ -3645,14 +3728,27 @@ function unterbricht(sicherung){
 
 function zeichenFuer(sicherung, x, y, senkrecht){
   const art = sicherung && sicherung.art;
-  let z;
-  if (art === "gG")         z = symSicherung(x, y);
-  else if (art === "FI")    z = symRcd(x, y);
-  else if (art === "FI/LS") z = symFiLs(x, y);
-  else if (art === "LS")    z = symLs(x, y);
-  else                      z = L(x-26, y, x+26, y, 1.3);
+  if (art === "gG") return symSicherung(x, y, senkrecht);
+  if (art !== "LS" && art !== "FI" && art !== "FI/LS") return "";
+  const xs = x - K_SPITZE, ys = y - K_HOCH;
+  let z = symKontakt(x, y) + pfeil(xs, ys);
+  if (art === "FI" || art === "FI/LS") z += tZeichen(xs, ys);
+  if (art === "FI/LS")                 z += pfeil(x - 3, aufBlatt(x, y, x - 3));
   // Bei senkrechtem Leiter wird dasselbe Zeichen gedreht, nicht neu erfunden.
   return senkrecht ? `<g transform="rotate(90 ${x} ${y})">${z}</g>` : z;
+}
+
+/* Der Polstrich läuft durch das Zeichen. Beim waagerechten Kontakt
+   liegt er in der Mitte des beweglichen Teils, beim senkrechten dort,
+   wohin die Drehung diesen Punkt bringt. Nur unter der waagerechten
+   Sicherung wird er unten gekürzt, weil dort die Beschriftung steht. */
+function polstrich(sicherung, x, y, zahl, senkrecht){
+  if (!zahl) return "";
+  const art = sicherung && sicherung.art;
+  if (art === "gG") return strich(x, y, zahl, !senkrecht);
+  if (art !== "LS" && art !== "FI" && art !== "FI/LS") return "";
+  const dx = (K_GELENK - K_SPITZE) / 2, dy = -K_HOCH / 2;
+  return senkrecht ? strich(x - dy, y + dx, zahl) : strich(x + dx, y + dy, zahl);
 }
 
 /* ---- Ableitungen ---- */
@@ -3677,20 +3773,48 @@ function polzahl(sicherung, art){
     default:      return null;
   }
 }
-function sicherungKurz(s){
-  if (!s || !s.art || s.art === "ohne") return "ohne";
-  if (s.kennlinie) return s.kennlinie + (s.strom ?? "") + "A";
-  return (s.strom ? s.strom + "A" : s.art);
-}
-function sicherungOben(s){
-  if (!s) return "";
-  if (s.art === "gG")    return "NH / Schmelzsicherung";
-  if (s.art === "FI")    return "FI" + (s.ma ? " " + s.ma + "mA" : "");
-  if (s.art === "FI/LS") return "FI/LS" + (s.ma ? " " + s.ma + "mA" : "");
-  return "";
+/* Beschriftungstext eines Zeichens. Die Gerätebezeichnung entfällt bei
+   FI und FI/LS, die steht im Schaltzeichen; genannt werden Kennlinie,
+   Nennstrom und Nennfehlerstrom. */
+function bemessung(s){
+  if (!s || !s.art || s.art === "ohne") return "";
+  const t = [];
+  if (s.art === "gG") t.push("gG");
+  if (s.kennlinie)    t.push(s.kennlinie);
+  if (s.strom)        t.push(s.strom + " A");
+  if (s.ma)           t.push(s.ma + " mA");
+  return t.join(" ");
 }
 
 /* ---- Ein Verteiler ---- */
+
+/* Die Kette läuft von der Schiene zum Verbraucher: erst das
+   vorgeschaltete Gerät, dann das eigentliche. */
+const kette = (o) => [o && o.vor, o && o.sicherung].filter(hatGeraet);
+
+/* Geräte-Spalten ab x0 */
+function spaltenAb(x0, anzahl){
+  const s = [];
+  for (let i = 0; i < anzahl; i++) s.push(x0 + i * SP_SCHRITT);
+  return s;
+}
+
+/* Eine waagerechte Leitung mit ihren Geräten. Schalter unterbrechen den
+   Leiter, Sicherungen nicht. */
+function reiheZeichnen(teile, xVon, xBis, y, geraete, spalten, art){
+  let x = xVon;
+  geraete.forEach((s, i) => {
+    const xg = spalten[i];
+    if (unterbricht(s)){
+      teile.push(L(x, y, xg - K_SPITZE, y, 1.3));
+      x = xg + K_GELENK;
+    }
+    teile.push(zeichenFuer(s, xg, y));
+    teile.push(polstrich(s, xg, y, polzahl(s, art)));
+    teile.push(beschriftung(xg, y, bemessung(s), ""));
+  });
+  teile.push(L(x, y, xBis, y, 1.3));
+}
 
 function schaltbildEinerVerteiler(v, nummerVon){
   const abg = v.abgaenge || [];
@@ -3700,30 +3824,38 @@ function schaltbildEinerVerteiler(v, nummerVon){
   const inGruppe = new Set(gruppen.map(g => g.rcd.id));
   const direkt = abg.filter(a => !a.rcd || !inGruppe.has(a.rcd));
 
+  /* Wie lang ist die längste Kette in jedem Bereich? Danach richten sich
+     die Spalten, damit gleichartige Geräte untereinander stehen. Ohne
+     vorgeschaltetes Gerät bleibt alles, wo es immer stand. */
+  const laenge = (o) => Math.max(1, kette(o).length);
+  const spDirekt = spaltenAb(X_GERAET, Math.max(1, ...direkt.map(laenge)));
+  const spStich  = spaltenAb(X_GERAET, Math.max(1, ...gruppen.map(g => laenge(g.rcd))));
+  const nKind    = Math.max(1, ...gruppen.map(g => Math.max(1, ...g.abgaenge.map(laenge))));
+
+  X_UNTER  = spStich[spStich.length - 1] + 130;
+  const spKind = spaltenAb(X_UNTER + (nKind > 1 ? 70 : 112), nKind);
+  const letzteSpalte = Math.max(spDirekt[spDirekt.length - 1], spKind[spKind.length - 1]);
+  X_KASTEN = Math.min(Math.max(640, letzteSpalte + 125), X_RAND - 200);
+  B_KASTEN = X_RAND - X_KASTEN;
+  X_ADER   = X_KASTEN - 46;
+
   const teile = [];
   let y = Y_KOPF;
   let letzteSchiene = y;
 
   /* Ein Abgang, waagerecht */
-  const abgangZeichnen = (a, xVon, xGeraet) => {
+  const abgangZeichnen = (a, xVon, spalten, punkt) => {
     const nr = abg.indexOf(a) + 1;
     const ziel = a.mobil ? verteilerNach(a.mobil) : null;
     const b = a.verbraucher;
+    const geraete = kette(a);
+    const sp = spalten.slice(spalten.length - Math.max(1, geraete.length));
 
-    if (unterbricht(a.sicherung)){
-      teile.push(L(xVon, y, xGeraet - 26, y, 1.3));
-      teile.push(L(xGeraet + 26, y, X_KASTEN, y, 1.3));
-    } else {
-      teile.push(L(xVon, y, X_KASTEN, y, 1.3));
-    }
-    teile.push(`<circle cx="${xVon}" cy="${y}" r="2.6" fill="#000"/>`);
-    teile.push(symZahl(xVon === X_SCHIENE ? X_ADER : xVon + 42, y, aderzahl(a.art)));
-    teile.push(zeichenFuer(a.sicherung, xGeraet, y));
-    teile.push(symZahl(xGeraet - 38, y, polzahl(a.sicherung, a.art)));
-
-    const oben = sicherungOben(a.sicherung);
-    if (oben) teile.push(T(xGeraet - 26, y - 24, oben, 10.5, "start"));
-    teile.push(T(xGeraet - 26, y + 26, sicherungKurz(a.sicherung), 12, "start"));
+    reiheZeichnen(teile, xVon, X_KASTEN, y, geraete, sp, a.art);
+    if (punkt !== false) teile.push(`<circle cx="${xVon}" cy="${y}" r="2.6" fill="#000"/>`);
+    /* Aderzahl der Leitung, hinter dem letzten Schutzorgan – nur wenn
+       dort noch Platz ist. */
+    if (X_ADER - sp[sp.length - 1] >= 66) teile.push(strich(X_ADER, y, aderzahl(a.art)));
     teile.push(T(xVon + 10, y - 10, "Abg. " + nr + (a.name ? " · " + a.name : ""), 10.5, "start"));
 
     const kastenOben = a.art || "Abgang";
@@ -3735,31 +3867,25 @@ function schaltbildEinerVerteiler(v, nummerVon){
     y += Y_ZEILE;
   };
 
-  for (const a of direkt){ abgangZeichnen(a, X_SCHIENE, X_GERAET); letzteSchiene = y - Y_ZEILE; }
+  for (const a of direkt){ abgangZeichnen(a, X_SCHIENE, spDirekt); letzteSchiene = y - Y_ZEILE; }
 
   for (const g of gruppen){
     const yStich = y;
-    if (unterbricht(g.rcd.sicherung)){
-      teile.push(L(X_SCHIENE, yStich, X_GERAET - 26, yStich, 1.3));
-      teile.push(L(X_GERAET + 26, yStich, X_UNTER, yStich, 1.3));
-    } else {
-      teile.push(L(X_SCHIENE, yStich, X_UNTER, yStich, 1.3));
-    }
+    const kt = kette(g.rcd);
+    const sp = spStich.slice(spStich.length - Math.max(1, kt.length));
+    reiheZeichnen(teile, X_SCHIENE, X_UNTER, yStich, kt, sp, "CEE");
     teile.push(`<circle cx="${X_SCHIENE}" cy="${yStich}" r="2.6" fill="#000"/>`);
-    teile.push(symZahl(X_ADER, yStich, 5));
-    teile.push(zeichenFuer(g.rcd.sicherung, X_GERAET, yStich));
-    teile.push(symZahl(X_GERAET - 38, yStich, polzahl(g.rcd.sicherung, "CEE")));
-    const oben = sicherungOben(g.rcd.sicherung);
-    if (oben) teile.push(T(X_GERAET - 26, yStich - 24, oben, 10.5, "start"));
-    teile.push(T(X_GERAET - 26, yStich + 26, sicherungKurz(g.rcd.sicherung), 12, "start"));
     teile.push(T(X_SCHIENE + 10, yStich - 10, g.rcd.name, 10.5, "start", true));
     letzteSchiene = yStich;
 
-    y += Y_ZEILE;
-    const ersteKind = y;
-    for (const a of g.abgaenge) abgangZeichnen(a, X_UNTER, X_GERAET2);
+    /* Der erste Abgang der Gruppe läuft auf derselben Zeile weiter: die
+       Leitung geht ohne Knick vom RCD durch. Erst die weiteren Abgänge
+       hängen an der Untersammelschiene. Ein Abzweigpunkt wird nur
+       gesetzt, wenn dort wirklich etwas abzweigt. */
+    const mehrere = g.abgaenge.length > 1;
+    g.abgaenge.forEach((a) => abgangZeichnen(a, X_UNTER, spKind, mehrere));
     const letztesKind = y - Y_ZEILE;
-    teile.push(L(X_UNTER, yStich, X_UNTER, letztesKind, 1.8));
+    if (mehrere) teile.push(L(X_UNTER, yStich, X_UNTER, letztesKind, 1.8));
     y += 8;
   }
 
@@ -3777,21 +3903,20 @@ function schaltbildEinerVerteiler(v, nummerVon){
   } else {
     const z = v.zuleitung || {};
     zuSicherung = z.sicherung;
-    kopf.push("Zuleitung");
-    if (z.herkunft) kopf.push(z.herkunft);
+    kopf.push(z.herkunft || "");
   }
+  const Y_EIN = 58;   // Mitte des Zeichens in der Einspeisung
   if (unterbricht(zuSicherung)){
-    teile.unshift(L(X_SCHIENE, 84, X_SCHIENE, letzteSchiene, 2.4));
-    teile.unshift(L(X_SCHIENE, 16, X_SCHIENE, 32, 2.4));
+    teile.unshift(L(X_SCHIENE, Y_EIN + K_GELENK, X_SCHIENE, letzteSchiene, 2.4));
+    teile.unshift(L(X_SCHIENE, 16, X_SCHIENE, Y_EIN - K_SPITZE, 2.4));
   } else {
     teile.unshift(L(X_SCHIENE, 16, X_SCHIENE, letzteSchiene, 2.4));
   }
-  teile.unshift(symZahl(X_SCHIENE, 26, polzahl(zuSicherung, zuArt || "CEE")));
-  teile.unshift(zeichenFuer(zuSicherung, X_SCHIENE, 58, true));
-  teile.unshift(T(X_SCHIENE + 44, 52, kopf[0], 12, "start", true));
-  teile.unshift(T(X_SCHIENE + 44, 68,
-    [sicherungOben(zuSicherung), sicherungKurz(zuSicherung), kopf[1]]
-      .filter(Boolean).join(" · "), 11, "start"));
+  teile.unshift(beschriftung(X_SCHIENE, Y_EIN, kopf[0],
+    [bemessung(zuSicherung), kopf[1]].filter(Boolean).join(" · "), true));
+  teile.unshift(polstrich(zuSicherung, X_SCHIENE, Y_EIN,
+    polzahl(zuSicherung, zuArt || "CEE"), true));
+  teile.unshift(zeichenFuer(zuSicherung, X_SCHIENE, Y_EIN, true));
 
   return { svg: teile.join("\n"), breite: S_NUTZ, hoehe: y + 20 };
 }
@@ -3824,7 +3949,7 @@ function schaltbildHtml(wurzel){
     return `<section class="blatt">
       <div class="kopf">
         <div><span class="name">${esc(v.name)}</span><span class="art">${unter}</span></div>
-        <div class="zaehler">Blatt ${b.nr} von ${b.gesamt}</div>
+        <div class="zaehler">Blatt ${b.nr} von ${b.gesamt} · Stand ${heute}</div>
       </div>
       <svg viewBox="0 0 ${b.bild.breite} ${b.bild.hoehe}" width="${b.bild.breite}" height="${b.bild.hoehe}">
         ${b.bild.svg}
@@ -3842,9 +3967,6 @@ function schaltbildHtml(wurzel){
        -webkit-print-color-adjust:exact;print-color-adjust:exact}
   body{width:${PDF_BREITE}px;margin:0 auto}
   .bogen{width:${BG_BREITE}px;margin:0 auto;padding:28px 0 40px}
-  .titel{border-bottom:2px solid #000;padding:0 ${S_RAND}px 10px;margin-bottom:18px}
-  .titel h1{font-size:19px;margin:0 0 3px}
-  .titel .unter{font-size:12.5px;color:#333}
   .blatt{padding:0 ${S_RAND}px;margin-bottom:26px;page-break-inside:avoid;break-inside:avoid}
   .kopf{display:flex;align-items:baseline;justify-content:space-between;
         border-bottom:1px solid #000;padding-bottom:5px;margin-bottom:10px}
@@ -3852,17 +3974,9 @@ function schaltbildHtml(wurzel){
   .kopf .art{font-size:12.5px;color:#333;margin-left:10px}
   .kopf .zaehler{font-size:12px;color:#333}
   svg{display:block}
-  .fuss{padding:14px ${S_RAND}px 0;border-top:1px solid #000;
-        font-size:11.5px;color:#333;margin-top:10px}
 </style></head>
 <body><div class="bogen">
-  <div class="titel">
-    <h1>Prinzipschaltbild — ${esc(wurzel.name)}</h1>
-    <div class="unter">${esc(PLAN ? PLAN.name : "")} · Stand ${heute}</div>
-  </div>
   ${abschnitte}
-  <div class="fuss">Einpolige Darstellung. Schaltzeichen nach DIN EN 60617.
-  Angaben aus SF E-Plan; maßgeblich ist die Anlage vor Ort.</div>
 </div></body></html>`;
 }
 
