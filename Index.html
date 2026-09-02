@@ -1,0 +1,3941 @@
+<!DOCTYPE html>
+<html lang="de">
+<!--
+  SF E-Plan
+  v1.0 · 01.09.2026
+
+  Änderungsliste
+  v1.0  Stufe 1: DWG einlesen, Plan dauerhaft ablegen, mehrere Pläne
+        nebeneinander, umschalten, umbenennen, löschen. Ansicht mit Zoom
+        und Verschieben, schwarz-weiß mit farbigen Standorten.
+        Standorte (volle Kreisschraffuren) werden getrennt erfasst.
+  v1.1  Im Schwarz-Weiß-Modus behalten Flächen ihre Helligkeit, Linien
+        werden vereinheitlicht. Welche Kreisfarben als Standort gelten,
+        wird je Plan über die Angaben gewählt.
+  v1.2  Ausschnitt: ein Rechteck begrenzt den gezeigten Bereich. Es steht
+        in Zeichnungskoordinaten, gilt für alle Pläne und bleibt beim
+        Einlesen eines neuen Plans erhalten. Der Schalter zum Hervorheben
+        der Standorte ist entfallen.
+  v1.3  Stufe 2: Verteiler setzen, benennen, verschieben, löschen.
+        Lage in Zeichnungskoordinaten. Gesetzt wird nur innerhalb des
+        Ausschnitts; bereits gesetzte bleiben immer sichtbar.
+  v1.4  Stufe 3: Innenleben eines Verteilers. Zuleitung mit Herkunft und
+        Absicherung, RCD-Gruppen, Abgänge mit Art, Absicherung und
+        Zuordnung zu einer Gruppe. Abgänge lassen sich stückweise in
+        einem Zug anlegen. Ein Tipp auf einen Verteiler außerhalb des
+        Verteilermodus öffnet ihn.
+  v1.5  Stufe 4: Verbraucher an einen Abgang anschließen und im Plan
+        verorten. Beim Tippen rastet der Ort auf einen Standortkreis in
+        der Nähe ein, sonst wird die getippte Stelle genommen. Die
+        Abgangsliste zeigt frei und belegt. Nennströme gG bis 500 A.
+  v1.6  Stufe 5: mobile Verteiler. Sie hängen an einem Abgang, haben
+        eigene RCD-Gruppen und Abgänge und lassen sich beliebig tief
+        verschachteln. Bestandsliste mit Typen und Stückzahlen in den
+        Einstellungen; entnommen wird nur, was noch verfügbar ist.
+        Im Plan hohl gezeichnet, mit gestrichelter Speiseleitung.
+  v1.7  Stufe 6: Planwechsel. Eine neue DWG ersetzt einen vorhandenen
+        Plan; Verteiler, Abgänge und Verbraucher bleiben erhalten. Die
+        Standorte werden über ihre absolute Lage abgeglichen (Toleranz
+        1 Einheit), Verbraucher folgen ihrem Standort. Fällt einer weg,
+        behält der Verbraucher seine Lage und wird gekennzeichnet.
+  v1.8  Zoom überarbeitet. Beim Abheben eines Fingers wird der Bezug
+        fürs Verschieben neu gesetzt (behebt den Sprung nach dem
+        Zoomen). Zwei Finger zoomen und schieben zugleich. Gezeichnet
+        wird nur noch einmal je Bild statt je Fingerimpuls, während der
+        Bewegung ohne Texte. Vergrößerung auf das 0,3- bis 400-fache
+        des Einpassens begrenzt.
+  v1.9  Ein Tipp auf einen Verbraucher hebt ihn und seinen ganzen
+        Versorgungsweg hervor: laufende Striche entlang der Speisekette,
+        Ringe um die beteiligten Verteiler, Klartext im Streifen oben.
+        Die Hervorhebung liegt auf einer eigenen Leinwand über dem Plan,
+        damit für die Bewegung nicht der ganze Plan neu gezeichnet wird.
+  v1.10 Tippen hebt hervor, langes Drücken (0,5 s) öffnet zum Bearbeiten.
+        Beim Verteiler wird alles Angeschlossene hervorgehoben, beim
+        mobilen zusätzlich die Zuleitung bis zur festen Einspeisung.
+        Bewegen oder ein zweiter Finger bricht den langen Druck ab.
+  v1.11 Beim langen Drücken markierte der Browser Text in der sich
+        öffnenden Ansicht. Die Textauswahl ist für die Oberfläche
+        abgeschaltet (Eingabefelder und Text in Abfragefenstern bleiben
+        ausgenommen), eine begonnene Markierung wird aufgehoben, und die
+        Leinwand zeigt kein Kontextmenü mehr.
+  v1.12 Die dauerhaft gestrichelte Speiseleitung mobiler Verteiler ist
+        entfallen. Der Weg wird nur noch bei Hervorhebung gezeigt.
+  v1.13 Standnummern: Beschriftungen aus Buchstabe und zwei Ziffern
+        werden den bunten Kreisen zugeordnet. Alle Paare nach Abstand,
+        kürzestes zuerst, beide danach vergeben; wer eine Nummer
+        verliert, rückt auf die nächstgelegene. Reichweite 25 Einheiten.
+        Die Nummer tritt an die Stelle von "Standort 18". Neu zuordnen
+        und Bilanz über die Angaben.
+  v1.14 Knopf und Ansicht für den Bestand lagen doppelt im Aufbau; das
+        zweite Vorkommen war ohne Wirkung. Beide entfernt.
+  v1.15 Reichweite der Standnummern auf 20 Einheiten gesenkt und über
+        die Angaben einstellbar gemacht (gilt für alle Pläne). Kreise
+        ohne eigene Nummer fallen nicht mehr auf "Standort 18" zurück,
+        sondern tragen den Bezug auf die nächstgelegene, z. B. "Nahe E04".
+  v1.16 Suche über die Lupe in der Kopfzeile: Standnummer, Verteiler
+        oder Verbraucher eingeben, Treffer wählen, die Ansicht springt
+        an die Stelle und hebt sie hervor. Freie Standorte erscheinen
+        als eigene Trefferart.
+  v1.17 Die feste Fußleiste ist entfallen, die Zeichnung nutzt jetzt die
+        volle Höhe. Ihre Punkte stehen hinter dem Zahnrad in der
+        Kopfzeile. Die Leisten der Betriebsarten (Ausschnitt, Verteiler,
+        Ortswahl) schweben über der Zeichnung statt Platz zu belegen.
+        Lupe und Zahnrad sind gezeichnete Symbole statt Schriftzeichen.
+  v1.18 Auch die Kopfzeile der Planansicht ist entfallen; die Zeichnung
+        füllt den ganzen Bildschirm. Zurück oben links, Zahnrad oben
+        rechts, Lupe unten rechts, alle drei schwebend. Während einer
+        Betriebsart sind Zahnrad und Lupe ausgeblendet. Das Zahnrad ist
+        jetzt ein echtes Zahnrad mit acht Zähnen und Nabenloch.
+  v1.19 Nach einem Sprung aus der Suche pulsiert eine Aura um das Ziel:
+        zwei versetzte Ringe, die nach außen laufen und ausblenden, dazu
+        ein ruhiger Schein. Endet, sobald irgendwo im Plan getippt wird,
+        ebenso beim Öffnen eines Verteilers und beim Verlassen des Plans.
+  v1.20 Bedienung umgestellt: langes Drücken markiert ein Objekt und
+        macht es verschiebbar, ein Tipp auf einen Verteiler öffnet seine
+        Ansicht. Solange etwas markiert ist, hebt jeder Tipp zuerst die
+        Markierung auf. Verschieben gilt jetzt auch für Verbraucher; ihre
+        Bindung an einen Standort wird danach neu bestimmt.
+  v1.21 Nach einem Sprung aus der Suche blieb der Plan leer, weil das
+        Neusetzen der Leinwandgröße sie leert und nur die Oberfläche mit
+        der Animation neu gezeichnet wurde. Jetzt wird beides gezeichnet.
+        Die Schirme hängen fest am Bildschirmrand statt an einer
+        Höhenangabe; der weiße Streifen unten entfällt.
+  v1.23 Öffnen eines Verteilers nur noch per Doppeltipp; einfaches
+        Tippen hebt weiterhin nur den Versorgungsweg hervor.
+  v1.24 Der Doppeltipp hebt nichts mehr hervor: die Hervorhebung des
+        ersten Tipps wird beim Öffnen zurückgenommen, ebenso ein
+        laufender Suchpuls.
+  v1.28 Schaltzeichen verfeinert: die Sicherung dreht sich mit dem Leiter
+        mit (Einspeisung senkrecht), FI und FI/LS ohne Wandlerellipse und
+        Strichlinie, jedes Gerät trägt einen Schrägstrich mit der Zahl der
+        unterbrochenen Pole (gG 3, LS 3 bzw. 1, FI/LS 4 bzw. 2, FI 4).
+  v1.27 Prinzipschaltbild nach Jeans Vorlagen: senkrechte Sammelschiene,
+        Abgänge waagerecht nach rechts, am Ende ein beschriftetes
+        Rechteck. Der Leiter läuft durch die Sicherung hindurch, nur ein
+        Schalter unterbricht ihn. Bemessung unter dem Zeichen, Adern- und
+        Polzahl als Schrägstrich mit Ziffer, RCD-Gruppen an einer
+        senkrechten Untersammelschiene.
+  v1.25 Beim Verteiler wartet die Hervorhebung des einfachen Tipps das
+        Doppeltipp-Fenster ab (320 ms), damit sie beim Öffnen nicht
+        kurz aufblitzt. Bei Verbrauchern und ins Leere bleibt sie
+        unverzögert. Der Hinweis "doppelt tippen öffnet" ist entfallen.
+  v1.22 Prinzipschaltbild: einpolige Darstellung eines Verteilers mit
+        Zuleitung, Sammelschiene, RCD-Gruppen als Untersammelschiene und
+        allen Abgängen; jeder mobile Verteiler bekommt ein eigenes Blatt
+        mit Verweis. Voransicht in der App, Weitergabe als HTML über das
+        Teilen-Menü wie bei den Nachweisen. Die Empfängeradresse steht im
+        Dateinamen hinter "__" und wird in den Einstellungen gepflegt.
+-->
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SF E-Plan">
+<meta name="theme-color" content="#1B2430">
+<title>SF E-Plan</title>
+<style>
+  :root{
+    --ink:#1B2430;          /* Schrift und Linien */
+    --ink-leise:#6A7480;
+    --grund:#FFFFFF;
+    --flaeche:#F2F4F5;
+    --linie:#DCE1E4;
+    --akzent:#17726B;       /* gedämpftes Blaugrün, steht nicht in Konkurrenz zu den Planfarben */
+    --akzent-hell:#E3EFED;
+    --warn:#A3342B;
+    --radius:14px;
+    --kopf:56px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  /* Kein Markieren beim langen Drücken; Eingabefelder bleiben ausgenommen. */
+  body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+  input,textarea,select,.fenster p{-webkit-user-select:text;user-select:text}
+  html,body{margin:0;padding:0;height:100%;overscroll-behavior:none}
+  body{
+    font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);background:var(--grund);
+    -webkit-text-size-adjust:100%;
+  }
+  button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
+  button:focus-visible{outline:2px solid var(--akzent);outline-offset:2px;border-radius:6px}
+
+  /* ---------- Grundgerüst ---------- */
+  /* Fest am Bildschirm statt an einer Höhenangabe: 100dvh liefert auf
+     manchen Geräten einen Rest, der als weißer Streifen stehen bleibt. */
+  .schirm{display:none;flex-direction:column;position:fixed;inset:0;overflow:hidden}
+  .schirm.an{display:flex}
+
+  .kopf{
+    height:var(--kopf);flex:0 0 auto;display:flex;align-items:center;gap:8px;
+    padding:0 12px;border-bottom:1px solid var(--linie);
+    padding-top:env(safe-area-inset-top);height:calc(var(--kopf) + env(safe-area-inset-top));
+    background:var(--grund);
+  }
+  .kopf .titel{flex:1;text-align:center;font-weight:600;font-size:17px;
+               white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .kopf button{width:40px;height:40px;display:flex;align-items:center;justify-content:center;
+               font-size:22px;color:var(--ink);flex:0 0 auto}
+  .kopf .platz{width:40px}
+
+  .rumpf{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch}
+  .innen{max-width:760px;margin:0 auto;padding:16px 16px calc(24px + env(safe-area-inset-bottom))}
+
+  h2{font-size:15px;font-weight:600;margin:22px 0 8px;color:var(--ink-leise)}
+  p{margin:0 0 10px}
+  .leise{color:var(--ink-leise);font-size:14px}
+
+  .knopf{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    background:var(--akzent);color:#fff;font-weight:600;
+    padding:14px 20px;border-radius:var(--radius);width:100%;
+  }
+  .knopf:active{opacity:.85}
+  .knopf.leer{background:transparent;color:var(--ink);border:1px solid var(--linie);font-weight:500}
+  .knopf.gefahr{background:transparent;color:var(--warn);border:1px solid var(--linie);font-weight:500}
+  .knopf[disabled]{opacity:.45}
+
+  /* ---------- Planliste ---------- */
+  .karte{
+    border:1px solid var(--linie);border-radius:var(--radius);
+    padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px;
+  }
+  .karte .text{flex:1;min-width:0}
+  .karte .name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .karte .unter{font-size:13px;color:var(--ink-leise);margin-top:2px}
+  .karte .mehr{width:36px;height:36px;flex:0 0 auto;display:flex;align-items:center;
+               justify-content:center;font-size:20px;color:var(--ink-leise);border-radius:10px}
+  .karte .mehr:active{background:var(--flaeche)}
+  .leerhinweis{
+    border:1px dashed var(--linie);border-radius:var(--radius);
+    padding:28px 18px;text-align:center;color:var(--ink-leise);margin-bottom:16px;
+  }
+  .punkte{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:-1px}
+
+  /* ---------- Planansicht ---------- */
+  #leinwandRahmen{flex:1;min-height:0;position:relative;background:#fff;overflow:hidden}
+  #leinwand{display:block;width:100%;height:100%;touch-action:none}
+  #oberflaeche{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  .fuss{
+    flex:0 0 auto;display:flex;gap:6px;padding:8px 10px;
+    padding-bottom:calc(8px + env(safe-area-inset-bottom));
+    border-top:1px solid var(--linie);background:var(--grund);overflow-x:auto;
+  }
+  /* Leisten der Betriebsarten liegen über der Zeichnung, statt Platz zu nehmen. */
+  .fuss.schwebend{
+    position:absolute;z-index:6;left:10px;right:10px;
+    bottom:calc(10px + env(safe-area-inset-bottom));
+    border:1px solid var(--linie);border-radius:var(--radius);
+    padding:8px;background:rgba(255,255,255,.94);
+    box-shadow:0 6px 20px rgba(27,36,48,.18);
+    justify-content:center;
+  }
+  @supports (backdrop-filter: blur(6px)){
+    .fuss.schwebend{background:rgba(255,255,255,.82);backdrop-filter:blur(6px)}
+  }
+  .fuss button{
+    flex:0 0 auto;padding:9px 13px;border-radius:11px;font-size:14px;
+    border:1px solid var(--linie);color:var(--ink-leise);white-space:nowrap;
+  }
+  /* Schwebende Knöpfe auf der Zeichnung */
+  .schwebknopf{
+    position:absolute;z-index:6;width:44px;height:44px;border-radius:22px;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(255,255,255,.92);color:var(--ink);
+    border:1px solid var(--linie);box-shadow:0 4px 14px rgba(27,36,48,.20);
+  }
+  .schwebknopf:active{background:var(--flaeche)}
+  .schwebknopf[hidden]{display:none}
+  @supports (backdrop-filter: blur(6px)){
+    .schwebknopf{background:rgba(255,255,255,.78);backdrop-filter:blur(6px)}
+  }
+  #knopfZurueck{top:calc(12px + env(safe-area-inset-top));left:12px}
+  #knopfMenue{top:calc(12px + env(safe-area-inset-top));right:12px}
+  #knopfSuche{bottom:calc(12px + env(safe-area-inset-bottom));right:12px}
+
+  #streifen{
+    position:absolute;z-index:5;
+    top:calc(14px + env(safe-area-inset-top));left:66px;right:66px;
+    padding:9px 12px;border-radius:12px;
+    background:rgba(23,114,107,.94);color:#fff;font-size:13px;
+    line-height:1.35;text-align:center;
+  }
+  .fuss[hidden]{display:none}
+  .fuss button[disabled]{opacity:.4}
+  .fuss button.an{background:var(--akzent-hell);border-color:var(--akzent);color:var(--akzent);font-weight:600}
+
+  /* ---------- Schaltbild ---------- */
+  #sbRahmen{flex:1;min-height:0;width:100%;border:0;background:#fff}
+  .sbleiste{
+    flex:0 0 auto;display:flex;gap:8px;padding:10px 12px;
+    padding-bottom:calc(10px + env(safe-area-inset-bottom));
+    border-top:1px solid var(--linie);background:var(--grund);
+  }
+  .sbleiste .knopf{width:auto;flex:1;padding:12px 14px}
+
+  /* ---------- Werkzeuge ---------- */
+  #menueSchleier{
+    position:fixed;inset:0;background:rgba(27,36,48,.35);z-index:46;
+    display:flex;align-items:flex-end;justify-content:center;
+  }
+  #menueSchleier[hidden]{display:none}
+  #menueBlatt{
+    width:100%;max-width:520px;background:var(--grund);
+    border-radius:20px 20px 0 0;padding:8px 14px calc(18px + env(safe-area-inset-bottom));
+    max-height:80vh;overflow:auto;
+  }
+  .griff{width:38px;height:4px;border-radius:2px;background:var(--linie);margin:4px auto 12px}
+  #menueInhalt .zeile{margin-bottom:8px}
+  .schalterwert{font-size:13px;font-weight:600;color:var(--ink-leise);flex:0 0 auto}
+  .schalterwert.an{color:var(--akzent)}
+
+  /* ---------- Suche ---------- */
+  #suchschirm{
+    position:fixed;inset:0;background:var(--grund);z-index:45;
+    display:flex;flex-direction:column;
+    padding-top:env(safe-area-inset-top);
+  }
+  #suchschirm[hidden]{display:none}
+  .suchkopf{
+    display:flex;gap:8px;align-items:center;padding:10px 12px;
+    border-bottom:1px solid var(--linie);flex:0 0 auto;
+  }
+  .suchkopf input{
+    flex:1;min-width:0;padding:12px 14px;border:1px solid var(--linie);
+    border-radius:var(--radius);font:inherit;color:var(--ink);
+  }
+  .suchkopf input:focus{outline:none;border-color:var(--akzent)}
+  .suchkopf button{padding:12px 6px;color:var(--akzent);font-weight:600;flex:0 0 auto}
+  .suchliste{flex:1;overflow:auto;padding:12px 12px calc(24px + env(safe-area-inset-bottom))}
+  .suchliste .zeile{max-width:760px;margin-left:auto;margin-right:auto}
+  .marke{
+    flex:0 0 auto;font-size:11px;font-weight:700;letter-spacing:.04em;
+    padding:4px 7px;border-radius:7px;background:var(--flaeche);color:var(--ink-leise);
+  }
+  .marke.uv{background:var(--akzent-hell);color:var(--akzent)}
+
+  /* ---------- eigene Abfragefenster ---------- */
+  #schleier{
+    position:fixed;inset:0;background:rgba(27,36,48,.45);
+    display:none;align-items:center;justify-content:center;padding:20px;z-index:50;
+  }
+  #schleier.an{display:flex}
+  .fenster{
+    background:var(--grund);border-radius:18px;padding:20px;
+    width:100%;max-width:380px;box-shadow:0 12px 40px rgba(27,36,48,.28);
+  }
+  .fenster h3{margin:0 0 8px;font-size:17px}
+  .fenster p{font-size:15px;color:var(--ink-leise)}
+  .fenster input{
+    width:100%;padding:12px 14px;border:1px solid var(--linie);border-radius:var(--radius);
+    font:inherit;color:var(--ink);margin:6px 0 4px;
+  }
+  .fenster input:focus{outline:none;border-color:var(--akzent)}
+  .fensterknoepfe{display:flex;flex-direction:column;gap:8px;margin-top:16px}
+  .zeile{
+    display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+    border:1px solid var(--linie);border-radius:var(--radius);
+    padding:12px 14px;margin-bottom:8px;background:var(--grund);
+  }
+  .zeile:active{background:var(--flaeche)}
+  .zeile .nr{
+    flex:0 0 auto;min-width:30px;height:30px;padding:0 6px;border-radius:9px;
+    background:var(--akzent-hell);color:var(--akzent);font-weight:700;font-size:13px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .zeile .haupt{flex:1;min-width:0}
+  .zeile .oben{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .zeile .unten{font-size:13px;color:var(--ink-leise);margin-top:2px}
+  .zeile .pfeil{color:var(--ink-leise);font-size:18px;flex:0 0 auto}
+  .platzhalter{color:var(--ink-leise);font-size:14px;padding:6px 2px 12px}
+  .fenster label{display:block;font-size:13px;color:var(--ink-leise);margin:12px 0 2px}
+  .fenster select{
+    width:100%;padding:12px 14px;border:1px solid var(--linie);border-radius:var(--radius);
+    font:inherit;color:var(--ink);background:var(--grund);appearance:none;
+  }
+  .fenster select:focus{outline:none;border-color:var(--akzent)}
+  .farbliste{max-height:46vh;overflow:auto;margin-top:10px;border:1px solid var(--linie);border-radius:var(--radius)}
+  .farbzeile{
+    display:flex;align-items:center;gap:12px;width:100%;
+    padding:11px 14px;border-bottom:1px solid var(--linie);text-align:left;
+  }
+  .farbzeile:last-child{border-bottom:0}
+  .farbzeile .probe{width:20px;height:20px;border-radius:50%;flex:0 0 auto;
+                    border:1px solid rgba(27,36,48,.25)}
+  .farbzeile .anzahl{flex:1;font-size:15px;color:var(--ink-leise)}
+  .farbzeile .haken{width:22px;text-align:center;font-weight:700;color:transparent}
+  .farbzeile.an .anzahl{color:var(--ink);font-weight:600}
+  .farbzeile.an .haken{color:var(--akzent)}
+
+  /* ---------- Fortschritt ---------- */
+  #arbeit{
+    position:fixed;inset:0;background:rgba(255,255,255,.94);z-index:60;
+    display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;
+  }
+  #arbeit.an{display:flex}
+  .rad{width:30px;height:30px;border:3px solid var(--linie);border-top-color:var(--akzent);
+       border-radius:50%;animation:dreh .8s linear infinite}
+  @keyframes dreh{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion:reduce){ .rad{animation-duration:2s} }
+  #arbeitText{font-size:15px;color:var(--ink-leise);text-align:center}
+
+  .fehler{color:var(--warn);font-size:14px;margin-top:10px}
+  input[type=file]{display:none}
+</style>
+</head>
+<body>
+
+<!-- ======================= Startschirm ======================= -->
+<div class="schirm an" id="schirmStart">
+  <div class="kopf">
+    <span class="platz"></span>
+    <span class="titel">SF E-Plan</span>
+    <span class="platz"></span>
+  </div>
+  <div class="rumpf"><div class="innen">
+    <div id="planListe"></div>
+    <button class="knopf" id="knopfEinlesen">Plan einlesen</button>
+    <button class="knopf leer" id="knopfBestand" style="margin-top:8px">Bestand mobiler Verteiler</button>
+    <p class="leise" style="margin-top:10px">Zeichnung im Format DWG oder DXF. Sie wird auf diesem Gerät verarbeitet und verlässt es nicht.</p>
+    <p class="leise" id="fussnote" style="margin-top:22px;text-align:center"></p>
+  </div></div>
+</div>
+
+<!-- ======================= Planansicht ======================= -->
+<div class="schirm" id="schirmPlan">
+  <div id="leinwandRahmen">
+    <canvas id="leinwand"></canvas><canvas id="oberflaeche"></canvas>
+    <div id="streifen" hidden></div>
+    <button class="schwebknopf" id="knopfZurueck" aria-label="Zurück"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4l-8 8 8 8"/></svg></button>
+    <button class="schwebknopf" id="knopfMenue" aria-label="Werkzeuge"><svg viewBox="0 0 24 24" width="21" height="21"><path fill="currentColor" fill-rule="evenodd" d="M 22.63 9.15 L 22.63 14.85 L 19.84 15.01 L 19.67 15.42 L 21.53 17.50 L 17.50 21.53 L 15.42 19.67 L 15.01 19.84 L 14.85 22.63 L 9.15 22.63 L 8.99 19.84 L 8.58 19.67 L 6.50 21.53 L 2.47 17.50 L 4.33 15.42 L 4.16 15.01 L 1.37 14.85 L 1.37 9.15 L 4.16 8.99 L 4.33 8.58 L 2.47 6.50 L 6.50 2.47 L 8.58 4.33 L 8.99 4.16 L 9.15 1.37 L 14.85 1.37 L 15.01 4.16 L 15.42 4.33 L 17.50 2.47 L 21.53 6.50 L 19.67 8.58 L 19.84 8.99 Z M 8.30 12.00 a 3.70 3.70 0 1 0 7.40 0 a 3.70 3.70 0 1 0 -7.40 0 Z"/></svg></button>
+    <button class="schwebknopf" id="knopfSuche" aria-label="Suchen"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><line x1="15.4" y1="15.4" x2="21" y2="21"/></svg></button>
+    <div class="fuss schwebend" id="fussVerteiler" hidden>
+      <button id="vFertig" class="an">Fertig</button>
+      <button id="vName" disabled>Umbenennen</button>
+      <button id="vWeg" disabled>Löschen</button>
+    </div>
+    <div class="fuss schwebend" id="fussOrt" hidden>
+      <button id="oAb" class="an">Abbrechen</button>
+      <button id="oOhne">Ohne Ort speichern</button>
+    </div>
+    <div class="fuss schwebend" id="fussZuschnitt" hidden>
+      <button id="zUebernehmen" class="an">Übernehmen</button>
+      <button id="zGanz">Ganzer Plan</button>
+      <button id="zAb">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= Bestand ======================= -->
+<div class="schirm" id="schirmBestand">
+  <div class="kopf">
+    <button id="bZurueck" aria-label="Zurück">&#8592;</button>
+    <span class="titel">Bestand mobiler Verteiler</span>
+    <span class="platz"></span>
+  </div>
+  <div class="rumpf"><div class="innen" id="bInhalt"></div></div>
+</div>
+
+<!-- ======================= Ein Verteiler ======================= -->
+<div class="schirm" id="schirmUV">
+  <div class="kopf">
+    <button id="uvZurueck" aria-label="Zurück">&#8592;</button>
+    <span class="titel" id="uvTitel">Verteiler</span>
+    <span class="platz"></span>
+  </div>
+  <div class="rumpf"><div class="innen" id="uvInhalt"></div></div>
+</div>
+
+<!-- ======================= Schaltbild ======================= -->
+<div class="schirm" id="schirmSchaltbild">
+  <div class="kopf">
+    <button id="sbZurueck" aria-label="Zurück">&#8592;</button>
+    <span class="titel">Prinzipschaltbild</span>
+    <span class="platz"></span>
+  </div>
+  <iframe id="sbRahmen" title="Voransicht"></iframe>
+  <div class="sbleiste">
+    <button id="sbEmpfaenger" class="knopf leer">Empfänger festlegen</button>
+    <button id="sbTeilen" class="knopf">Weitergeben</button>
+  </div>
+</div>
+
+<!-- ======================= Werkzeuge ======================= -->
+<div id="menueSchleier" hidden>
+  <div id="menueBlatt">
+    <div class="griff"></div>
+    <div id="menueInhalt"></div>
+  </div>
+</div>
+
+<!-- ======================= Suche ======================= -->
+<div id="suchschirm" hidden>
+  <div class="suchkopf">
+    <input id="suchEingabe" type="text" autocomplete="off" autocapitalize="characters"
+           placeholder="Standnummer, Verteiler oder Verbraucher">
+    <button id="suchAb">Abbrechen</button>
+  </div>
+  <div class="suchliste" id="suchListe"></div>
+</div>
+
+<!-- ======================= Abfragefenster ======================= -->
+<div id="schleier"><div class="fenster" id="fenster"></div></div>
+
+<!-- ======================= Fortschritt ======================= -->
+<div id="arbeit"><div class="rad"></div><div id="arbeitText"></div></div>
+
+<script type="module">
+"use strict";
+
+const FASSUNG = "v1.28 · 01.09.2026";
+
+/* ================================================================== */
+/* 1 · Kleinkram                                                       */
+/* ================================================================== */
+
+const $ = (id) => document.getElementById(id);
+const zahl = (n) => Number(n).toLocaleString("de-DE");
+const datumText = (t) => new Date(t).toLocaleDateString("de-DE",
+  { day:"2-digit", month:"2-digit", year:"numeric" });
+const naechsterRahmen = () => new Promise(r => requestAnimationFrame(() => r()));
+
+function arbeitAn(text){ $("arbeitText").textContent = text; $("arbeit").classList.add("an"); }
+function arbeitAus(){ $("arbeit").classList.remove("an"); }
+
+/* Abfragen laufen über ein eigenes Fenster, nicht über Systemdialoge. */
+function frage({ titel, text, felder, knoepfe }){
+  return new Promise(fertig => {
+    const f = $("fenster");
+    f.innerHTML = "";
+    if (titel){ const h = document.createElement("h3"); h.textContent = titel; f.appendChild(h); }
+    if (text){ const p = document.createElement("p"); p.textContent = text; f.appendChild(p); }
+    const eingaben = [];
+    (felder || []).forEach(feld => {
+      const i = document.createElement("input");
+      i.type = "text"; i.value = feld.wert || ""; i.placeholder = feld.platzhalter || "";
+      f.appendChild(i); eingaben.push(i);
+    });
+    const box = document.createElement("div");
+    box.className = "fensterknoepfe";
+    (knoepfe || [{ text:"OK", wert:true }]).forEach(k => {
+      const b = document.createElement("button");
+      b.className = "knopf" + (k.art === "leer" ? " leer" : k.art === "gefahr" ? " gefahr" : "");
+      b.textContent = k.text;
+      b.addEventListener("click", () => {
+        $("schleier").classList.remove("an");
+        fertig({ wahl:k.wert, werte:eingaben.map(e => e.value.trim()) });
+      });
+      box.appendChild(b);
+    });
+    f.appendChild(box);
+    $("schleier").classList.add("an");
+    if (eingaben.length) setTimeout(() => { eingaben[0].focus(); eingaben[0].select(); }, 60);
+  });
+}
+const hinweis = (titel, text) => frage({ titel, text, knoepfe:[{ text:"Verstanden", wert:true }] });
+
+/* Fenster mit Auswahlfeldern. Liefert die Werte unter ihren Namen. */
+function formular({ titel, text, felder, knoepfe }){
+  return new Promise(fertig => {
+    const f = $("fenster");
+    f.innerHTML = "";
+    if (titel){ const h = document.createElement("h3"); h.textContent = titel; f.appendChild(h); }
+    if (text){ const p = document.createElement("p"); p.textContent = text; f.appendChild(p); }
+
+    const eingaben = {};
+    for (const feld of (felder || [])){
+      const l = document.createElement("label");
+      l.textContent = feld.beschriftung;
+      f.appendChild(l);
+      let e;
+      if (feld.art === "wahl"){
+        e = document.createElement("select");
+        for (const o of feld.optionen){
+          const opt = document.createElement("option");
+          opt.value = String(o.wert); opt.textContent = o.text;
+          e.appendChild(opt);
+        }
+        e.value = String(feld.wert ?? (feld.optionen[0] && feld.optionen[0].wert));
+      } else {
+        e = document.createElement("input");
+        e.type = "text";
+        if (feld.art === "zahl") e.inputMode = "numeric";
+        e.value = feld.wert ?? "";
+        e.placeholder = feld.platzhalter || "";
+      }
+      f.appendChild(e);
+      eingaben[feld.name] = e;
+    }
+
+    const box = document.createElement("div");
+    box.className = "fensterknoepfe";
+    for (const k of (knoepfe || [{ text:"OK", wert:true }])){
+      const b = document.createElement("button");
+      b.className = "knopf" + (k.art === "leer" ? " leer" : k.art === "gefahr" ? " gefahr" : "");
+      b.textContent = k.text;
+      b.addEventListener("click", () => {
+        $("schleier").classList.remove("an");
+        const werte = {};
+        for (const n of Object.keys(eingaben)) werte[n] = eingaben[n].value;
+        fertig({ wahl:k.wert, werte });
+      });
+      box.appendChild(b);
+    }
+    f.appendChild(box);
+    $("schleier").classList.add("an");
+  });
+}
+
+/* ---- Absicherungen ---- */
+
+const SICHERUNG = {
+  "LS":    { kennlinien:["B","C"], stroeme:[10,13,16,20,25,32,40,50,63], ma:null },
+  "FI/LS": { kennlinien:["B","C"], stroeme:[10,13,16,20,25,32,40,50,63], ma:[30] },
+  "FI":    { kennlinien:null,      stroeme:[25,40,63,125],               ma:[30,300] },
+  "gG":    { kennlinien:null,      stroeme:[35,50,63,80,100,125,160,200,250,315,400,500], ma:null },
+  "ohne":  { kennlinien:null,      stroeme:null,                         ma:null },
+};
+const ABGANGSARTEN = ["Schuko","CEE 16A","CEE 32A","CEE 63A","CEE 125A"];
+
+function sicherungText(s){
+  if (!s || !s.art || s.art === "ohne") return "ohne Absicherung";
+  let t = s.art;
+  if (s.kennlinie) t += " " + s.kennlinie + (s.strom ?? "");
+  else if (s.strom) t += " " + s.strom + " A";
+  if (s.ma) t += ", " + s.ma + " mA";
+  return t;
+}
+
+/* Eigenes Fenster, weil die Felder von der Art abhängen. */
+function sicherungWaehlen(aktuell, titel){
+  return new Promise(fertig => {
+    let stand = Object.assign({ art:"LS", kennlinie:"B", strom:16, ma:null }, aktuell || {});
+    const f = $("fenster");
+
+    function bauen(){
+      f.innerHTML = "";
+      const h = document.createElement("h3");
+      h.textContent = titel || "Absicherung";
+      f.appendChild(h);
+
+      const bau = (beschriftung, optionen, wert, beiWahl) => {
+        const l = document.createElement("label");
+        l.textContent = beschriftung; f.appendChild(l);
+        const e = document.createElement("select");
+        for (const o of optionen){
+          const opt = document.createElement("option");
+          opt.value = String(o); opt.textContent = String(o);
+          e.appendChild(opt);
+        }
+        e.value = String(wert);
+        e.addEventListener("change", () => beiWahl(e.value));
+        f.appendChild(e);
+      };
+
+      bau("Art", Object.keys(SICHERUNG), stand.art, (w) => {
+        stand.art = w;
+        const v = SICHERUNG[w];
+        stand.kennlinie = v.kennlinien ? (v.kennlinien.includes(stand.kennlinie) ? stand.kennlinie : v.kennlinien[0]) : null;
+        stand.strom = v.stroeme ? (v.stroeme.includes(stand.strom) ? stand.strom : v.stroeme[0]) : null;
+        stand.ma = v.ma ? (v.ma.includes(stand.ma) ? stand.ma : v.ma[0]) : null;
+        bauen();
+      });
+      const v = SICHERUNG[stand.art];
+      if (v.kennlinien) bau("Charakteristik", v.kennlinien, stand.kennlinie, (w) => { stand.kennlinie = w; });
+      if (v.stroeme)    bau("Nennstrom (A)", v.stroeme, stand.strom, (w) => { stand.strom = Number(w); });
+      if (v.ma)         bau("Nennfehlerstrom (mA)", v.ma, stand.ma, (w) => { stand.ma = Number(w); });
+
+      const box = document.createElement("div");
+      box.className = "fensterknoepfe";
+      const ok = document.createElement("button");
+      ok.className = "knopf"; ok.textContent = "Übernehmen";
+      ok.addEventListener("click", () => { $("schleier").classList.remove("an"); fertig(stand); });
+      const ab = document.createElement("button");
+      ab.className = "knopf leer"; ab.textContent = "Abbrechen";
+      ab.addEventListener("click", () => { $("schleier").classList.remove("an"); fertig(null); });
+      box.appendChild(ok); box.appendChild(ab);
+      f.appendChild(box);
+    }
+    bauen();
+    $("schleier").classList.add("an");
+  });
+}
+
+/* ================================================================== */
+/* Ablage (IndexedDB)                                                  */
+/* ================================================================== */
+
+const DB_NAME = "sf-eplan", DB_STAND = 2, LADEN = "plaene", EINST = "einstellungen";
+let datenbank = null;
+
+function dbOeffnen(){
+  if (datenbank) return Promise.resolve(datenbank);
+  return new Promise((ja, nein) => {
+    const a = indexedDB.open(DB_NAME, DB_STAND);
+    a.onupgradeneeded = () => {
+      const d = a.result;
+      if (!d.objectStoreNames.contains(LADEN)) d.createObjectStore(LADEN, { keyPath:"id" });
+      if (!d.objectStoreNames.contains(EINST)) d.createObjectStore(EINST, { keyPath:"id" });
+    };
+    a.onsuccess = () => { datenbank = a.result; ja(datenbank); };
+    a.onerror = () => nein(a.error);
+  });
+}
+function dbTun(art, arbeit, bereich){
+  return dbOeffnen().then(d => new Promise((ja, nein) => {
+    const t = d.transaction(bereich || LADEN, art);
+    const s = t.objectStore(bereich || LADEN);
+    const anfrage = arbeit(s);
+    t.oncomplete = () => ja(anfrage && anfrage.result);
+    t.onerror = () => nein(t.error);
+  }));
+}
+const planSpeichern = (p) => dbTun("readwrite", s => s.put(p));
+const planHolen     = (id) => dbTun("readonly",  s => s.get(id));
+const planLoeschen  = (id) => dbTun("readwrite", s => s.delete(id));
+const alleHolen     = ()   => dbTun("readonly",  s => s.getAll());
+
+/* Der Ausschnitt gilt für alle Pläne und steht in Zeichnungskoordinaten. */
+const ausschnittHolen = () => dbTun("readonly", s => s.get("ausschnitt"), EINST)
+  .then(e => (e && e.wert) || null);
+const ausschnittSpeichern = (wert) =>
+  dbTun("readwrite", s => s.put({ id:"ausschnitt", wert }), EINST);
+
+/* Reichweite der Standnummern-Zuordnung, gilt für alle Pläne. */
+const reichweiteHolen = () => dbTun("readonly", s => s.get("reichweite"), EINST)
+  .then(e => (e && typeof e.wert === "number") ? e.wert : 20);
+const reichweiteSpeichern = (wert) =>
+  dbTun("readwrite", s => s.put({ id:"reichweite", wert }), EINST);
+
+/* Der Bestand gehört zum Betrieb, nicht zum einzelnen Plan. */
+const bestandHolen = () => dbTun("readonly", s => s.get("bestand"), EINST)
+  .then(e => (e && e.wert) || []);
+const bestandSpeichern = (wert) =>
+  dbTun("readwrite", s => s.put({ id:"bestand", wert }), EINST);
+
+/* ================================================================== */
+/* 3 · DWG einlesen                                                    */
+/* ================================================================== */
+
+const QUELLEN = [
+  { name:"jsDelivr", js:"https://cdn.jsdelivr.net/npm/@mlightcad/libredwg-web/+esm",
+                     wasm:"https://cdn.jsdelivr.net/npm/@mlightcad/libredwg-web/wasm/" },
+  { name:"unpkg",    js:"https://unpkg.com/@mlightcad/libredwg-web?module",
+                     wasm:"https://unpkg.com/@mlightcad/libredwg-web/wasm/" },
+  { name:"esm.sh",   js:"https://esm.sh/@mlightcad/libredwg-web",
+                     wasm:"https://esm.sh/@mlightcad/libredwg-web/wasm/" },
+];
+let LIB = null, DATEITYPEN = null;
+
+async function bibliothekHolen(){
+  if (LIB) return LIB;
+  const misslungen = [];
+  for (const q of QUELLEN){
+    try{
+      arbeitAn("Lade Zeichnungsbibliothek über " + q.name + " …");
+      const m = await import(/* @vite-ignore */ q.js);
+      const LibreDwg = m.LibreDwg || (m.default && m.default.LibreDwg);
+      const typen = m.Dwg_File_Type || (m.default && m.default.Dwg_File_Type);
+      if (!LibreDwg) throw new Error("Bibliothek unvollständig");
+      let inst;
+      try { inst = await LibreDwg.create(q.wasm); } catch(e){ inst = await LibreDwg.create(); }
+      LIB = inst; DATEITYPEN = typen || { DWG:0, DXF:1 };
+      return LIB;
+    }catch(e){ misslungen.push(q.name); }
+  }
+  throw new Error("Keine der Quellen war erreichbar (" + misslungen.join(", ") +
+                  "). Zum Einlesen einer Zeichnung wird einmalig eine Internetverbindung gebraucht.");
+}
+
+/* ---- Bausteine, Ebenen, Farben ---- */
+
+const istPunkt = (o) => o && typeof o === "object" && typeof o.x === "number" && typeof o.y === "number";
+function punkt(o){
+  if (istPunkt(o)) return { x:o.x, y:o.y };
+  if (o && istPunkt(o.position)) return { x:o.position.x, y:o.position.y };
+  if (Array.isArray(o) && o.length >= 2 && typeof o[0] === "number") return { x:o[0], y:o[1] };
+  return null;
+}
+const ersteZahl = (e, namen, ersatz) => { for (const n of namen) if (typeof e[n] === "number") return e[n]; return ersatz; };
+const ersterPunkt = (e, namen) => { for (const n of namen){ const p = punkt(e[n]); if (p) return p; } return null; };
+const alsBogen = (w) => (Math.abs(w) > 7 ? w * Math.PI/180 : w);
+
+const EINS = { a:1,b:0,c:0,d:1,e:0,f:0 };
+const verkette = (m,n) => ({
+  a:m.a*n.a+m.c*n.b, b:m.b*n.a+m.d*n.b, c:m.a*n.c+m.c*n.d, d:m.b*n.c+m.d*n.d,
+  e:m.a*n.e+m.c*n.f+m.e, f:m.b*n.e+m.d*n.f+m.f });
+const wende = (m,p) => ({ x:m.a*p.x+m.c*p.y+m.e, y:m.b*p.x+m.d*p.y+m.f });
+const massstab = (m) => Math.sqrt(Math.abs(m.a*m.d - m.b*m.c)) || 1;
+
+function aciCss(i){
+  i = Math.abs(i|0);
+  const fest = {0:"#000000",1:"#ff0000",2:"#ffff00",3:"#00ff00",4:"#00ffff",5:"#0000ff",
+                6:"#ff00ff",7:"#000000",8:"#808080",9:"#c0c0c0",
+                250:"#333333",251:"#505050",252:"#696969",253:"#828282",254:"#bebebe",255:"#ffffff",256:"#000000"};
+  if (fest[i] !== undefined) return fest[i];
+  if (i < 10 || i > 249) return "#000000";
+  const gruppe = Math.floor((i-10)/10), stufe = (i-10)%10;
+  const h = (gruppe*15)%360, s = (stufe%2===0)?1:0.55;
+  const v = [1,1,0.78,0.78,0.62,0.62,0.47,0.47,0.32,0.32][stufe];
+  const f = (n) => { const k=(n+h/60)%6; return Math.round(255*(v-v*s*Math.max(0,Math.min(k,4-k,1)))); };
+  return (f(5)<<16 | f(3)<<8 | f(1));
+}
+function aciZahl(i){ const c = aciCss(i); return typeof c === "number" ? c : parseInt(c.slice(1),16); }
+
+/* Farbe als Zahl 0xRRGGBB. "color" führt RGB, "colorIndex" die Palettennummer. */
+function farbeVon(e, ebenen, geerbt){
+  if (typeof e.color === "number" && e.color >= 0) return e.color & 0xFFFFFF;
+  let ci = e.colorIndex ?? e.colorNumber;
+  if (typeof ci === "object" && ci !== null) ci = ci.index;
+  if (typeof ci !== "number") return geerbt ?? 0;
+  if (ci === 0) return geerbt ?? 0;
+  if (ci === 256 || ci < 0){
+    const l = e.layer ? ebenen.get(e.layer) : null;
+    if (l){
+      if (typeof l.color === "number" && l.color >= 0) return l.color & 0xFFFFFF;
+      let lc = l.colorIndex ?? l.colorNumber;
+      if (typeof lc === "object" && lc !== null) lc = lc.index;
+      if (typeof lc === "number") ci = Math.abs(lc);
+    }
+    if (ci === 256 || ci < 0) return geerbt ?? 0;
+  }
+  return aciZahl(ci);
+}
+
+function sammleBloecke(db){
+  const b = new Map(), gesehen = new Set();
+  (function geh(o, t){
+    if (!o || typeof o !== "object" || t > 5 || gesehen.has(o)) return;
+    gesehen.add(o);
+    if (Array.isArray(o)){ o.slice(0,6000).forEach(x => geh(x, t+1)); return; }
+    if (typeof o.name === "string"){
+      for (const k of ["entities","objects","items"]){
+        const v = o[k];
+        if (Array.isArray(v) && v.length && v.some(x => x && typeof x.type === "string")){
+          const s = o.name.toLowerCase();
+          if (!b.has(s)) b.set(s, v);
+        }
+      }
+    }
+    for (const k of Object.keys(o)) geh(o[k], t+1);
+  })(db, 0);
+  return b;
+}
+function sammleEbenen(db){
+  const e = new Map(), gesehen = new Set();
+  (function geh(o, t){
+    if (!o || typeof o !== "object" || t > 5 || gesehen.has(o)) return;
+    gesehen.add(o);
+    if (Array.isArray(o)){ o.slice(0,4000).forEach(x => geh(x, t+1)); return; }
+    const hatFarbe = ("color" in o) || ("colorIndex" in o);
+    if (typeof o.name === "string" && hatFarbe && !("start" in o) && !("center" in o) && !("vertices" in o)){
+      if (!e.has(o.name)) e.set(o.name, o);
+    }
+    for (const k of Object.keys(o)) geh(o[k], t+1);
+  })(db, 0);
+  return e;
+}
+function findeObjektliste(db){
+  const treffer = [], gesehen = new Set();
+  (function geh(o, t){
+    if (!o || typeof o !== "object" || t > 4 || gesehen.has(o)) return;
+    gesehen.add(o);
+    if (Array.isArray(o)){
+      const mit = o.filter(x => x && typeof x === "object" && typeof x.type === "string").length;
+      if (o.length && mit/o.length > 0.5) treffer.push(o);
+      return;
+    }
+    for (const k of Object.keys(o)) geh(o[k], t+1);
+  })(db, 0);
+  treffer.sort((a,b) => b.length - a.length);
+  return treffer[0] || [];
+}
+
+/* ---- Geometrie ---- */
+
+function bulgePunkte(p0, p1, bulge){
+  const theta = 4*Math.atan(bulge), d = Math.hypot(p1.x-p0.x, p1.y-p0.y);
+  if (!d || !isFinite(theta) || Math.abs(theta) < 1e-6) return [p1];
+  const r = d/(2*Math.sin(theta/2));
+  if (!isFinite(r) || Math.abs(r) > d*1e4) return [p1];
+  const h = r*Math.cos(theta/2), ux = (p1.x-p0.x)/d, uy = (p1.y-p0.y)/d;
+  const cx = (p0.x+p1.x)/2 - uy*h, cy = (p0.y+p1.y)/2 + ux*h;
+  const a0 = Math.atan2(p0.y-cy, p0.x-cx);
+  const n = Math.max(2, Math.min(64, Math.ceil(Math.abs(theta)/0.15)));
+  const aus = [];
+  for (let i=1;i<=n;i++){ const a = a0 + theta*(i/n);
+    aus.push({ x:cx+Math.abs(r)*Math.cos(a), y:cy+Math.abs(r)*Math.sin(a) }); }
+  return aus;
+}
+function bogenPunkte(m, r, a1, a2){
+  let sp = a2-a1; while (sp <= 0) sp += Math.PI*2;
+  const n = Math.max(3, Math.min(96, Math.ceil(sp/0.12)));
+  const aus = [];
+  for (let i=0;i<=n;i++){ const a = a1 + sp*(i/n);
+    aus.push({ x:m.x+r*Math.cos(a), y:m.y+r*Math.sin(a) }); }
+  return aus;
+}
+function stuetzpunkte(v, schliessen){
+  const pk = [];
+  for (let i=0;i<v.length;i++){
+    const p0 = punkt(v[i]); if (!p0) continue;
+    if (!pk.length) pk.push(p0);
+    const n = v[i+1] ? punkt(v[i+1]) : null, b = v[i].bulge ?? 0;
+    if (n) pk.push(...(b ? bulgePunkte(p0, n, b) : [n]));
+  }
+  if (schliessen && v.length > 1){
+    const l = punkt(v[v.length-1]), e = punkt(v[0]), b = v[v.length-1].bulge ?? 0;
+    if (l && e && (l.x !== e.x || l.y !== e.y)) pk.push(...(b ? bulgePunkte(l, e, b) : [e]));
+  }
+  return pk;
+}
+function istGeschlossen(e){
+  for (const n of ["closed","isClosed"]) if (typeof e[n] === "boolean") return e[n];
+  for (const n of ["flag","flags","isClosed"]) if (typeof e[n] === "number")
+    return (e[n] & 1) === 1 || (e[n] & 512) === 512;
+  return false;
+}
+/* Runder Rand? Mitte aus dem umschließenden Rechteck, das ist beim Vollkreis exakt. */
+function bahnKreis(pk){
+  if (!pk || pk.length < 6) return null;
+  let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;
+  for (const p of pk){ if(p.x<x0)x0=p.x; if(p.x>x1)x1=p.x; if(p.y<y0)y0=p.y; if(p.y>y1)y1=p.y; }
+  const bw = x1-x0, bh = y1-y0;
+  if (!(bw>0) || !(bh>0) || Math.abs(bw-bh)/Math.max(bw,bh) > 0.06) return null;
+  const cx = (x0+x1)/2, cy = (y0+y1)/2;
+  let rmin=Infinity, rmax=0, su=0;
+  for (const p of pk){ const r = Math.hypot(p.x-cx,p.y-cy); su+=r; if(r<rmin)rmin=r; if(r>rmax)rmax=r; }
+  const rm = su/pk.length;
+  if (!(rm>0) || (rmax-rmin)/rm > 0.06) return null;
+  return { x:cx, y:cy, r:(bw+bh)/4 };
+}
+const istSolide = (e) =>
+  typeof e.solidFill === "number" ? e.solidFill !== 0 :
+  typeof e.solidFill === "boolean" ? e.solidFill :
+  /^solid$/i.test(String(e.patternName ?? "").trim());
+
+function hatchBahnen(e){
+  const raender = e.boundaryPaths || e.boundaries || e.paths;
+  if (!Array.isArray(raender)) return [];
+  const aus = [];
+  for (const bahn of raender){
+    let pk = [];
+    const kanten = bahn.edges || bahn.entities || null;
+    if (kanten && kanten.length){
+      for (const k of kanten){
+        const m = punkt(k.center || k.centerPoint);
+        if (m && typeof k.radius === "number"){
+          pk.push(...bogenPunkte(m, k.radius,
+            alsBogen(ersteZahl(k,["startAngle"],0)), alsBogen(ersteZahl(k,["endAngle"],Math.PI*2))));
+          continue;
+        }
+        const v = k.vertices || k.points;
+        if (Array.isArray(v) && v.length){ pk.push(...stuetzpunkte(v, false)); continue; }
+        const a = ersterPunkt(k,["start","startPoint","p1"]), b = ersterPunkt(k,["end","endPoint","p2"]);
+        if (a && b){ if (!pk.length) pk.push(a); pk.push(b); }
+      }
+    } else {
+      const v = bahn.vertices || bahn.points || (Array.isArray(bahn) ? bahn : null);
+      if (Array.isArray(v) && v.length) pk = stuetzpunkte(v, true);
+    }
+    if (pk.length >= 3) aus.push(pk);
+  }
+  return aus;
+}
+function groessteBahn(bahnen){
+  let beste = null, weite = -1;
+  for (const b of bahnen){
+    let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;
+    for (const p of b){ if(p.x<x0)x0=p.x; if(p.x>x1)x1=p.x; if(p.y<y0)y0=p.y; if(p.y>y1)y1=p.y; }
+    const w = Math.max(x1-x0, y1-y0);
+    if (w > weite){ weite = w; beste = b; }
+  }
+  return beste;
+}
+
+/* ---- Zeichnung aufbauen ----
+   Formen: 1 Linienzug · 2 Fläche · 3 Kreisumriss · 4 volle Scheibe · 5 Text  */
+
+const FORM_ZUG=1, FORM_FLAECHE=2, FORM_KREIS=3, FORM_SCHEIBE=4, FORM_TEXT=5;
+const HOECHSTZAHL = 500000;
+
+function baueZeichnung(objekte, bloecke, ebenen){
+  const stand = { teile:[], texte:[], standorte:[], bloecke, ebenen, voll:false };
+  gehListe(objekte, EINS, 0, null, stand);
+  return stand;
+}
+function gehListe(liste, mat, tiefe, geerbt, stand){
+  if (!Array.isArray(liste) || tiefe > 6 || stand.voll) return;
+  for (const e of liste){
+    if (stand.voll) return;
+    if (e && typeof e === "object") einObjekt(e, mat, tiefe, geerbt, stand);
+  }
+}
+function lege(stand, form, punkte, farbe, radius){
+  if (stand.teile.length >= HOECHSTZAHL){ stand.voll = true; return null; }
+  for (const p of punkte) if (!isFinite(p.x) || !isFinite(p.y)) return null;
+  const t = { form, punkte, farbe, radius:radius||0 };
+  stand.teile.push(t);
+  return t;
+}
+
+function einObjekt(e, mat, tiefe, geerbt, stand){
+  const t = (e.type || "").toUpperCase();
+  const c = farbeVon(e, stand.ebenen, geerbt);
+
+  if (t === "INSERT" || t === "MINSERT" || t === "DIMENSION"){
+    const name = String(e.name || e.blockName || "").toLowerCase();
+    const ziel = stand.bloecke.get(name);
+    if (!ziel) return;
+    const p = ersterPunkt(e, ["insertionPoint","position","point"]) || { x:0, y:0 };
+    const sx = ersteZahl(e, ["xScale","scaleX"], 1) || 1;
+    const sy = ersteZahl(e, ["yScale","scaleY"], sx) || sx;
+    const rot = alsBogen(ersteZahl(e, ["rotation","angle"], 0));
+    const co = Math.cos(rot), si = Math.sin(rot);
+    gehListe(ziel, verkette(mat, { a:co*sx, b:si*sx, c:-si*sy, d:co*sy, e:p.x, f:p.y }),
+             tiefe+1, c, stand);
+    return;
+  }
+
+  if (t === "HATCH"){
+    const bahnen = hatchBahnen(e);
+    if (!bahnen.length) return;
+    const voll = istSolide(e);
+    const rund = voll ? bahnKreis(groessteBahn(bahnen)) : null;
+    if (rund){
+      const m = wende(mat, rund);
+      const r = rund.r * massstab(mat);
+      const teil = lege(stand, FORM_SCHEIBE, [m], c, r);
+      if (teil) stand.standorte.push({ x:m.x, y:m.y, r, farbe:c, teil:stand.teile.length-1 });
+      return;
+    }
+    for (const bahn of bahnen){
+      const pk = bahn.map(p => wende(mat, p));
+      lege(stand, voll ? FORM_FLAECHE : FORM_ZUG, voll ? pk : pk.concat([pk[0]]), c);
+    }
+    return;
+  }
+
+  if (t === "LINE"){
+    const a = ersterPunkt(e, ["startPoint","start","p1"]), b = ersterPunkt(e, ["endPoint","end","p2"]);
+    if (a && b) lege(stand, FORM_ZUG, [wende(mat,a), wende(mat,b)], c);
+    return;
+  }
+  if (t === "LWPOLYLINE" || t === "POLYLINE" || t === "POLYLINE2D"){
+    const v = e.vertices || e.points || [];
+    const pk = stuetzpunkte(v, istGeschlossen(e) && v.length > 2);
+    if (pk.length >= 2) lege(stand, FORM_ZUG, pk.map(p => wende(mat,p)), c);
+    return;
+  }
+  if (t === "CIRCLE"){
+    const m = punkt(e.center);
+    if (m && typeof e.radius === "number")
+      lege(stand, FORM_KREIS, [wende(mat,m)], c, e.radius*massstab(mat));
+    return;
+  }
+  if (t === "ARC"){
+    const m = punkt(e.center);
+    if (m && typeof e.radius === "number"){
+      const pk = bogenPunkte(m, e.radius,
+        alsBogen(ersteZahl(e,["startAngle"],0)), alsBogen(ersteZahl(e,["endAngle"],Math.PI*2)));
+      lege(stand, FORM_ZUG, pk.map(p => wende(mat,p)), c);
+    }
+    return;
+  }
+  if (t === "ELLIPSE"){
+    const m = punkt(e.center), achse = ersterPunkt(e, ["majorAxisEndPoint","majorAxis"]);
+    if (!m || !achse) return;
+    const gr = Math.hypot(achse.x, achse.y), verh = ersteZahl(e,["axisRatio","ratio"],1);
+    const dreh = Math.atan2(achse.y, achse.x);
+    const a1 = ersteZahl(e,["startAngle"],0), a2 = ersteZahl(e,["endAngle"],Math.PI*2);
+    let sp = a2-a1; while (sp <= 1e-9) sp += Math.PI*2;
+    const n = Math.max(8, Math.min(120, Math.ceil(sp/0.1))), pk = [];
+    for (let i=0;i<=n;i++){
+      const a = a1 + sp*(i/n), x = gr*Math.cos(a), y = gr*verh*Math.sin(a);
+      pk.push(wende(mat, { x:m.x + x*Math.cos(dreh) - y*Math.sin(dreh),
+                           y:m.y + x*Math.sin(dreh) + y*Math.cos(dreh) }));
+    }
+    lege(stand, FORM_ZUG, pk, c);
+    return;
+  }
+  if (t === "SPLINE"){
+    const roh = (e.fitPoints && e.fitPoints.length) ? e.fitPoints : (e.controlPoints || e.points || []);
+    const pk = roh.map(punkt).filter(Boolean).map(p => wende(mat,p));
+    if (pk.length >= 2) lege(stand, FORM_ZUG, pk, c);
+    return;
+  }
+  if (t === "TEXT" || t === "MTEXT" || t === "ATTRIB"){
+    const m = ersterPunkt(e, ["startPoint","position","insertionPoint","point"]);
+    const s = String(e.text ?? e.value ?? e.contents ?? "").replace(/\\[A-Za-z][^;]*;/g, "").trim();
+    if (!m || !s) return;
+    const p = wende(mat, m);
+    stand.texte.push({
+      x:p.x, y:p.y, farbe:c,
+      h: ersteZahl(e, ["textHeight","height"], 2.5) * massstab(mat),
+      dreh: alsBogen(ersteZahl(e, ["rotation","angle"], 0)),
+      s: s.slice(0,150)
+    });
+  }
+}
+
+/* ---- Kernbereich und Ausreißer ---- */
+
+function umgrenzung(punkte){
+  let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;
+  for (const p of punkte){ if(p.x<x0)x0=p.x; if(p.x>x1)x1=p.x; if(p.y<y0)y0=p.y; if(p.y>y1)y1=p.y; }
+  return { x0, y0, x1, y1 };
+}
+function kernbereich(teile){
+  if (!teile.length) return null;
+  const cx = [], cy = [];
+  for (const t of teile){ const u = umgrenzung(t.punkte); cx.push((u.x0+u.x1)/2); cy.push((u.y0+u.y1)/2); }
+  const sx = cx.slice().sort((a,b)=>a-b), sy = cy.slice().sort((a,b)=>a-b);
+  const q = (a,p) => a[Math.min(a.length-1, Math.max(0, Math.floor(a.length*p)))];
+  const gx0=q(sx,0.01), gx1=q(sx,0.99), gy0=q(sy,0.01), gy1=q(sy,0.99);
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  teile.forEach((t,i) => {
+    if (cx[i]>=gx0 && cx[i]<=gx1 && cy[i]>=gy0 && cy[i]<=gy1){
+      const u = umgrenzung(t.punkte);
+      const r = t.radius || 0;
+      if (u.x0-r<x0) x0=u.x0-r; if (u.x1+r>x1) x1=u.x1+r;
+      if (u.y0-r<y0) y0=u.y0-r; if (u.y1+r>y1) y1=u.y1+r;
+    }
+  });
+  return isFinite(x0) ? { x0, y0, x1, y1 } : null;
+}
+
+/* ---- In kompakte Felder packen ---- */
+
+function packen(stand){
+  const kern = kernbereich(stand.teile);
+  if (!kern) throw new Error("Die Zeichnung enthält nichts Darstellbares.");
+  const mx = (kern.x0+kern.x1)/2, my = (kern.y0+kern.y1)/2;
+  const spanne = Math.max(kern.x1-kern.x0, kern.y1-kern.y0) || 1;
+  const grenze = spanne * 10;            // alles weiter draußen gilt als Ausreißer
+
+  const behalten = [];
+  let uebergangen = 0;
+  for (const t of stand.teile){
+    const u = umgrenzung(t.punkte);
+    const px = (u.x0+u.x1)/2 - mx, py = (u.y0+u.y1)/2 - my;
+    if (Math.abs(px) > grenze || Math.abs(py) > grenze){ uebergangen++; continue; }
+    behalten.push(t);
+  }
+
+  let punktZahl = 0;
+  for (const t of behalten) punktZahl += t.punkte.length;
+
+  const formen = new Uint8Array(behalten.length);
+  const farben = new Uint32Array(behalten.length);
+  const starts = new Uint32Array(behalten.length + 1);
+  const radien = new Float32Array(behalten.length);
+  const kasten = new Float32Array(behalten.length * 4);
+  const punkte = new Float32Array(punktZahl * 2);
+
+  let k = 0;
+  behalten.forEach((t, i) => {
+    formen[i] = t.form; farben[i] = t.farbe; radien[i] = t.radius || 0; starts[i] = k;
+    let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+    for (const p of t.punkte){
+      const x = p.x - mx, y = p.y - my;
+      punkte[k*2] = x; punkte[k*2+1] = y; k++;
+      if (x<x0)x0=x; if (x>x1)x1=x; if (y<y0)y0=y; if (y>y1)y1=y;
+    }
+    const r = t.radius || 0;
+    kasten[i*4]   = x0-r; kasten[i*4+1] = y0-r;
+    kasten[i*4+2] = x1+r; kasten[i*4+3] = y1+r;
+  });
+  starts[behalten.length] = k;
+
+  const drin = (p) => Math.abs(p.x-mx) <= grenze && Math.abs(p.y-my) <= grenze;
+
+  return {
+    nullpunkt: { x:mx, y:my },
+    rand: { x0:kern.x0-mx, y0:kern.y0-my, x1:kern.x1-mx, y1:kern.y1-my },
+    formen, farben, starts, radien, kasten, punkte,
+    texte: stand.texte.filter(drin).map(t => ({ x:t.x-mx, y:t.y-my, h:t.h, dreh:t.dreh, s:t.s, farbe:t.farbe })),
+    standorte: stand.standorte.filter(drin)
+      .map((s,i) => ({ nr:i+1, x:s.x-mx, y:s.y-my, r:s.r, farbe:s.farbe })),
+    uebergangen,
+  };
+}
+
+async function dateiEinlesen(datei){
+  await bibliothekHolen();
+  arbeitAn("Lese " + (datei.size/1048576).toFixed(1) + " MB …");
+  await naechsterRahmen();
+
+  const istDxf = /\.dxf$/i.test(datei.name);
+  const puffer = await datei.arrayBuffer();
+  const typ = istDxf ? (DATEITYPEN.DXF ?? 1) : (DATEITYPEN.DWG ?? 0);
+  const inhalt = istDxf ? new TextDecoder().decode(puffer) : new Uint8Array(puffer);
+
+  let roh;
+  try { roh = LIB.dwg_read_data(inhalt, typ); }
+  catch(e){ roh = LIB.dwg_read_data(new Uint8Array(puffer), typ); }
+  if (!roh) throw new Error("Die Datei konnte nicht gelesen werden.");
+  const db = LIB.convert(roh);
+  try { LIB.dwg_free(roh); } catch(e){}
+
+  arbeitAn("Werte die Zeichnung aus …");
+  await naechsterRahmen();
+
+  const objekte = findeObjektliste(db);
+  if (!objekte.length) throw new Error("In der Datei wurden keine Zeichenobjekte gefunden.");
+  const stand = baueZeichnung(objekte, sammleBloecke(db), sammleEbenen(db));
+
+  arbeitAn("Lege den Plan ab …");
+  await naechsterRahmen();
+
+  const gepackt = packen(stand);
+  gepackt.nummernBilanz = standnummernZuordnen(gepackt);
+  return Object.assign(gepackt, {
+    id: "plan_" + Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+    name: datei.name.replace(/\.(dwg|dxf)$/i, ""),
+    dateiname: datei.name,
+    angelegt: Date.now(),
+    teilzahl: gepackt.formen.length,
+  });
+}
+
+/* ================================================================== */
+/* 4 · Startschirm                                                     */
+/* ================================================================== */
+
+const dateiFeld = document.createElement("input");
+dateiFeld.type = "file"; dateiFeld.accept = ".dwg,.dxf";
+document.body.appendChild(dateiFeld);
+
+/* Liefert die gewählte Datei oder nichts, wenn abgebrochen wurde. */
+let dateiWartend = null;
+function dateiWaehlen(){
+  return new Promise(fertig => {
+    dateiWartend = fertig;
+    dateiFeld.value = "";
+    dateiFeld.click();
+  });
+}
+dateiFeld.addEventListener("change", () => {
+  const f = dateiFeld.files && dateiFeld.files[0];
+  const warte = dateiWartend;
+  dateiWartend = null;
+  if (warte) warte(f || null);
+});
+
+$("knopfEinlesen").addEventListener("click", async () => {
+  const f = await dateiWaehlen();
+  if (!f) return;
+  try{
+    const plan = await dateiEinlesen(f);
+    await planSpeichern(plan);
+    arbeitAus();
+    await listeZeichnen();
+    if (plan.uebergangen)
+      await hinweis("Plan eingelesen",
+        plan.uebergangen + " Teile lagen weit außerhalb der Zeichnung und wurden übergangen. " +
+        "Der Plan enthält " + zahl(plan.standorte.length) + " Standorte.");
+    planOeffnen(plan.id);
+  }catch(e){
+    arbeitAus();
+    await hinweis("Das hat nicht geklappt", (e && e.message) ? e.message : String(e));
+  }
+});
+
+async function listeZeichnen(){
+  const plaene = (await alleHolen()) || [];
+  plaene.sort((a,b) => b.angelegt - a.angelegt);
+  const ziel = $("planListe");
+  ziel.innerHTML = "";
+
+  if (!plaene.length){
+    ziel.innerHTML = '<div class="leerhinweis">Noch kein Plan vorhanden.<br>Lies eine Zeichnung ein, um zu beginnen.</div>';
+    $("fussnote").textContent = FASSUNG;
+    return;
+  }
+  const ueberschrift = document.createElement("h2");
+  ueberschrift.textContent = plaene.length === 1 ? "1 Plan" : plaene.length + " Pläne";
+  ziel.appendChild(ueberschrift);
+
+  for (const p of plaene){
+    const karte = document.createElement("div");
+    karte.className = "karte";
+
+    const text = document.createElement("button");
+    text.className = "text";
+    text.style.textAlign = "left";
+    text.innerHTML = '<div class="name"></div><div class="unter"></div>';
+    text.querySelector(".name").textContent = p.name;
+    const aktiv = standorteAktiv(p);
+    const farbfelder = [...new Set(aktiv.map(s => s.farbe))].slice(0,6)
+      .map(f => '<span class="punkte" style="background:' + hex(f) + '"></span>').join("");
+    text.querySelector(".unter").innerHTML =
+      farbfelder + zahl(aktiv.length) + " Standorte · " +
+      (p.aktualisiert ? "ersetzt " + datumText(p.aktualisiert) : datumText(p.angelegt));
+    text.addEventListener("click", () => planOeffnen(p.id));
+    karte.appendChild(text);
+
+    const mehr = document.createElement("button");
+    mehr.className = "mehr";
+    mehr.textContent = "⋯";
+    mehr.setAttribute("aria-label", "Mehr zu " + p.name);
+    mehr.addEventListener("click", () => planVerwalten(p));
+    karte.appendChild(mehr);
+
+    ziel.appendChild(karte);
+  }
+  $("fussnote").textContent = FASSUNG;
+}
+
+async function planVerwalten(p){
+  const a = await frage({
+    titel: p.name,
+    text: zahl(p.teilzahl) + " Zeichenteile · " + zahl(standorteAktiv(p).length) + " Standorte",
+    knoepfe: [
+      { text:"Öffnen", wert:"auf" },
+      { text:"Plan durch neue Fassung ersetzen", wert:"neu", art:"leer" },
+      { text:"Umbenennen", wert:"name", art:"leer" },
+      { text:"Löschen", wert:"weg", art:"gefahr" },
+      { text:"Abbrechen", wert:null, art:"leer" },
+    ],
+  });
+  if (a.wahl === "auf") return planOeffnen(p.id);
+  if (a.wahl === "neu") return planAktualisieren(p);
+  if (a.wahl === "name"){
+    const b = await frage({
+      titel:"Plan umbenennen", felder:[{ wert:p.name }],
+      knoepfe:[{ text:"Übernehmen", wert:true }, { text:"Abbrechen", wert:false, art:"leer" }],
+    });
+    if (b.wahl && b.werte[0]){ p.name = b.werte[0]; await planSpeichern(p); listeZeichnen(); }
+  }
+  if (a.wahl === "weg"){
+    const b = await frage({
+      titel:"Plan löschen", text:"„" + p.name + "“ wird endgültig entfernt.",
+      knoepfe:[{ text:"Endgültig löschen", wert:true, art:"gefahr" }, { text:"Behalten", wert:false, art:"leer" }],
+    });
+    if (b.wahl){ await planLoeschen(p.id); listeZeichnen(); }
+  }
+}
+
+const hex = (f) => "#" + (f & 0xFFFFFF).toString(16).padStart(6,"0");
+
+/* ================================================================== */
+/* 5 · Planansicht                                                     */
+/* ================================================================== */
+
+let PLAN = null;
+let sicht = { x:0, y:0, m:1 };
+const anzeige = { farbe:false, text:true };
+let bahnen = null;      // vorgefertigte Pfade je Farbe
+let AUSSCHNITT = null;  // gilt für alle Pläne, in Zeichnungskoordinaten
+let zuschneiden = false;
+let auswahl = null;     // Rechteck auf dem Schirm, während gezogen wird
+let verteilerModus = false;
+let gewaehlt = null;    // Kennung des ausgewählten Verteilers
+let ortWahl = null;     // {art, ...}, solange ein Ort im Plan gesucht wird
+let basisM = 0;         // Vergrößerung beim Einpassen, Bezug für die Grenzen
+let inBewegung = false; // während Ziehen und Zoomen wird sparsamer gezeichnet
+
+const leinwand = $("leinwand");
+const ctx = leinwand.getContext("2d");
+
+function schirmZeigen(id){
+  document.querySelectorAll(".schirm").forEach(s => s.classList.toggle("an", s.id === id));
+}
+
+async function planOeffnen(id){
+  arbeitAn("Öffne Plan …");
+  await naechsterRahmen();
+  PLAN = await planHolen(id);
+  if (!PLAN){ arbeitAus(); return hinweis("Nicht gefunden", "Dieser Plan ist nicht mehr vorhanden."); }
+  REICHWEITE = await reichweiteHolen();
+  if (PLAN.standorte.length && PLAN.standorte[0].nummer === undefined){
+    PLAN.nummernBilanz = standnummernZuordnen(PLAN);
+    await planSpeichern(PLAN);
+  }
+  schirmZeigen("schirmPlan");
+  if (AUSSCHNITT === null) AUSSCHNITT = await ausschnittHolen();
+  bahnen = pfadeBauen(PLAN);
+  await naechsterRahmen();
+  groesseSetzen();
+  einpassen();
+  arbeitAus();
+}
+$("knopfZurueck").addEventListener("click", () => {
+  markiertSetzen(null);
+  hervorhebungWaehlen(null);
+  pulsSetzen(null);
+  letzterTippWahl = null;
+  tippUhrAbbrechen();
+  PLAN = null; bahnen = null;
+  schirmZeigen("schirmStart");
+  listeZeichnen();
+});
+
+/* Pfade einmal je Plan bauen, danach kostet Zoomen fast nichts. */
+function pfadeBauen(p){
+  const striche = new Map(), flaechen = new Map();
+  const hole = (karte, f) => { let b = karte.get(f); if (!b){ b = new Path2D(); karte.set(f, b); } return b; };
+
+  for (let i=0;i<p.formen.length;i++){
+    const form = p.formen[i], farbe = p.farben[i];
+    if (form === FORM_SCHEIBE) continue;        // Standorte werden getrennt gezeichnet
+    const a = p.starts[i], b = p.starts[i+1];
+    if (form === FORM_KREIS){
+      const x = p.punkte[a*2], y = p.punkte[a*2+1], r = Math.max(p.radien[i], 1e-4);
+      const pfad = hole(striche, farbe);
+      pfad.moveTo(x + r, y);
+      pfad.arc(x, y, r, 0, Math.PI*2);
+      continue;
+    }
+    if (b - a < 2) continue;
+    const pfad = hole(form === FORM_FLAECHE ? flaechen : striche, farbe);
+    pfad.moveTo(p.punkte[a*2], p.punkte[a*2+1]);
+    for (let k=a+1;k<b;k++) pfad.lineTo(p.punkte[k*2], p.punkte[k*2+1]);
+    if (form === FORM_FLAECHE) pfad.closePath();
+  }
+  return { striche, flaechen };
+}
+
+function groesseSetzen(){
+  const r = $("leinwandRahmen").getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const br = Math.max(1, Math.round(r.width*dpr)), ho = Math.max(1, Math.round(r.height*dpr));
+  leinwand.width = br; leinwand.height = ho;
+  oberflaeche.width = br; oberflaeche.height = ho;
+  return r;
+}
+/* Der gespeicherte Ausschnitt steht in Zeichnungskoordinaten und wird
+   für den geöffneten Plan in dessen Bezugspunkt umgerechnet. Liegt er
+   ganz außerhalb, wird er ignoriert. */
+function ausschnittFuerPlan(){
+  if (!PLAN || !AUSSCHNITT) return null;
+  const n = PLAN.nullpunkt, b = PLAN.rand;
+  const a = { x0:AUSSCHNITT.x0-n.x, y0:AUSSCHNITT.y0-n.y,
+              x1:AUSSCHNITT.x1-n.x, y1:AUSSCHNITT.y1-n.y };
+  if (a.x1 < b.x0 || a.x0 > b.x1 || a.y1 < b.y0 || a.y0 > b.y1) return null;
+  return a;
+}
+
+function einpassen(){
+  if (!PLAN) return;
+  const r = groesseSetzen();
+  const b = ausschnittFuerPlan() || PLAN.rand;
+  const bw = Math.max(1e-6, b.x1-b.x0), bh = Math.max(1e-6, b.y1-b.y0);
+  sicht.m = Math.min(r.width/bw, r.height/bh) * 0.95;
+  basisM = sicht.m;
+  sicht.x = r.width/2  - ((b.x0+b.x1)/2) * sicht.m;
+  sicht.y = r.height/2 + ((b.y0+b.y1)/2) * sicht.m;
+  zeichne();
+}
+
+/* Auf weißem Grund ist reines Weiß unsichtbar; CAD dreht Linien beim Ausgeben um.
+   Flächen bleiben davon unberührt, sonst entstünden schwarze Klötze.
+   Im Schwarz-Weiß-Modus werden Linien vereinheitlicht, Flächen behalten
+   ihre Helligkeit: ein Hellgrau bleibt exakt hellgrau, eine farbige Fläche
+   wird zu einem Grau derselben Helligkeit. */
+function helligkeit(f){
+  return (0.299*((f>>16)&255) + 0.587*((f>>8)&255) + 0.114*(f&255)) / 255;
+}
+function grauwert(f){
+  const s = Math.round(helligkeit(f)*255).toString(16).padStart(2,"0");
+  return "#" + s + s + s;
+}
+const sichtbar = (f) => helligkeit(f) > 0.95 ? "#000000" : hex(f);
+const strichFarbe  = (f) => anzeige.farbe ? sichtbar(f) : "#1B2430";
+const flaechenFarbe = (f) => anzeige.farbe ? hex(f) : grauwert(f);
+
+/* Verteiler liegen in Zeichnungskoordinaten, damit sie später ohne
+   Umrechnung in eine neue Planfassung übernommen werden können. */
+const verteilerListe = () => (PLAN && PLAN.verteiler) || [];
+const VERTEILER_SEITE = 20;
+
+function verteilerAufSchirm(v){
+  const n = PLAN.nullpunkt;
+  return { x: sicht.x + (v.x-n.x)*sicht.m, y: sicht.y - (v.y-n.y)*sicht.m };
+}
+function verteilerUnter(sx, sy){
+  let beste = null, naeheste = VERTEILER_SEITE;
+  for (const v of verteilerListe()){
+    const p = verteilerAufSchirm(v);
+    const d = Math.max(Math.abs(p.x-sx), Math.abs(p.y-sy));
+    if (d < naeheste){ naeheste = d; beste = v; }
+  }
+  return beste;
+}
+
+function verteilerZeichnen(r, dpr){
+  const liste = verteilerListe();
+  if (!liste.length) return;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const h = VERTEILER_SEITE, halb = h/2;
+
+  for (const v of liste){
+    const p = verteilerAufSchirm(v);
+    if (p.x < -80 || p.y < -40 || p.x > r.width+160 || p.y > r.height+40) continue;
+    const gewaehltJetzt = v.id === gewaehlt;
+    const mobil = v.art === "mobil";
+
+    if (gewaehltJetzt){
+      ctx.strokeStyle = "#17726B";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, h, 0, Math.PI*2);
+      ctx.stroke();
+    }
+
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(p.x-halb, p.y-halb, h, h, 5);
+    else ctx.rect(p.x-halb, p.y-halb, h, h);
+    ctx.fillStyle = mobil ? "#ffffff" : "#17726B";
+    ctx.fill();
+    ctx.strokeStyle = mobil ? "#17726B" : "#ffffff";
+    ctx.lineWidth = mobil ? 2.5 : 2;
+    ctx.stroke();
+
+    ctx.font = "600 12px -apple-system,Segoe UI,Helvetica,Arial,sans-serif";
+    ctx.textBaseline = "middle";
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#ffffff";
+    ctx.strokeText(v.name, p.x+halb+5, p.y);
+    ctx.fillStyle = "#1B2430";
+    ctx.fillText(v.name, p.x+halb+5, p.y);
+  }
+  ctx.textBaseline = "alphabetic";
+}
+
+/* Verbraucher hängen an einem Abgang und tragen einen Ort im Plan.
+   Gezeichnet als Ring, damit ein darunter liegender Standort sichtbar bleibt. */
+const SCHRIFT_AB = 1.4;   // ab dieser Vergrößerung werden Namen geschrieben
+
+function alleVerbraucher(){
+  const aus = [];
+  for (const v of verteilerListe())
+    for (const a of (v.abgaenge || []))
+      if (a.verbraucher && a.verbraucher.x !== null && a.verbraucher.x !== undefined)
+        aus.push({ v, a, b:a.verbraucher });
+  return aus;
+}
+
+function verbraucherZeichnen(r, dpr){
+  const liste = alleVerbraucher();
+  if (!liste.length) return;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const n = PLAN.nullpunkt;
+  const beschriften = sicht.m >= SCHRIFT_AB;
+
+  for (const { v, a, b } of liste){
+    const x = sicht.x + (b.x-n.x)*sicht.m;
+    const y = sicht.y - (b.y-n.y)*sicht.m;
+    if (x < -80 || y < -40 || x > r.width+160 || y > r.height+40) continue;
+
+    ctx.beginPath();
+    ctx.arc(x, y, 8, 0, Math.PI*2);
+    ctx.setLineDash([]);
+    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 4; ctx.stroke();
+    if (b.ortVeraltet) ctx.setLineDash([3,3]);
+    ctx.strokeStyle = "#1B2430"; ctx.lineWidth = 2; ctx.stroke();
+    ctx.setLineDash([]);
+
+    if (beschriften){
+      const nr = (v.abgaenge.indexOf(a) + 1);
+      const t = (b.name || "Verbraucher") + " · " + v.name + "/" + nr;
+      ctx.font = "500 11px -apple-system,Segoe UI,Helvetica,Arial,sans-serif";
+      ctx.textBaseline = "middle";
+      ctx.lineWidth = 3; ctx.strokeStyle = "#ffffff";
+      ctx.strokeText(t, x+12, y+10);
+      ctx.fillStyle = "#1B2430";
+      ctx.fillText(t, x+12, y+10);
+      ctx.textBaseline = "alphabetic";
+    }
+  }
+}
+
+function zeichne(){
+  if (!PLAN || !bahnen) return;
+  const r = $("leinwandRahmen").getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const schnitt = zuschneiden ? null : ausschnittFuerPlan();
+
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, leinwand.width, leinwand.height);
+
+  ctx.setTransform(sicht.m*dpr, 0, 0, -sicht.m*dpr, sicht.x*dpr, sicht.y*dpr);
+  ctx.lineWidth = 1/sicht.m;
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+
+  ctx.save();
+  if (schnitt){
+    ctx.beginPath();
+    ctx.rect(schnitt.x0, schnitt.y0, schnitt.x1-schnitt.x0, schnitt.y1-schnitt.y0);
+    ctx.clip();
+  }
+  for (const [farbe, pfad] of bahnen.flaechen){
+    ctx.fillStyle = flaechenFarbe(farbe);
+    ctx.fill(pfad);
+  }
+  for (const [farbe, pfad] of bahnen.striche){
+    ctx.strokeStyle = strichFarbe(farbe);
+    ctx.stroke(pfad);
+  }
+  ctx.restore();
+
+  standorteZeichnen(r, dpr, schnitt);
+  if (anzeige.text && !(inBewegung && PLAN.texte.length > 400))
+    texteZeichnen(r, dpr, schnitt);
+  verbraucherZeichnen(r, dpr);
+  verteilerZeichnen(r, dpr);
+  oberflaecheZeichnen();
+  if (zuschneiden) auswahlZeichnen(r, dpr);
+}
+
+/* Beim Zuschneiden liegt ein Schleier über allem außerhalb des Rechtecks. */
+function auswahlZeichnen(r, dpr){
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const a = auswahl || rechteckAufSchirm(ausschnittFuerPlan());
+  ctx.fillStyle = "rgba(27,36,48,.38)";
+  if (!a){
+    ctx.fillRect(0, 0, r.width, r.height);
+    return;
+  }
+  ctx.beginPath();
+  ctx.rect(0, 0, r.width, r.height);
+  ctx.rect(a.x0, a.y0, a.x1-a.x0, a.y1-a.y0);
+  ctx.fill("evenodd");
+  ctx.strokeStyle = "#17726B";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(a.x0, a.y0, a.x1-a.x0, a.y1-a.y0);
+}
+function rechteckAufSchirm(b){
+  if (!b) return null;
+  const X = (x) => sicht.x + x*sicht.m, Y = (y) => sicht.y - y*sicht.m;
+  return { x0:X(b.x0), y0:Y(b.y1), x1:X(b.x1), y1:Y(b.y0) };
+}
+
+/* Standorte sitzen in Bildschirmkoordinaten, damit sie auch in der
+   Übersicht sichtbar bleiben. Bei Radius 0,55 wären es sonst 0,4 Bildpunkte. */
+const STANDORT_MIN = 3.5;
+
+/* Welche der gefundenen Kreise gelten als Standort? Das entscheidet
+   der Nutzer je Plan über die Farbe, die App rät nicht. */
+function standorteAktiv(p){
+  const aus = new Set(p.farbenAus || []);
+  return p.standorte.filter(s => !aus.has(s.farbe));
+}
+
+function standorteZeichnen(r, dpr, schnitt){
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const X = (x) => sicht.x + x*sicht.m;
+  const Y = (y) => sicht.y - y*sicht.m;
+
+  for (const s of standorteAktiv(PLAN)){
+    if (schnitt && (s.x < schnitt.x0 || s.x > schnitt.x1 || s.y < schnitt.y0 || s.y > schnitt.y1)) continue;
+    const x = X(s.x), y = Y(s.y);
+    if (x < -30 || y < -30 || x > r.width+30 || y > r.height+30) continue;
+    const rr = Math.max(s.r * sicht.m, STANDORT_MIN);
+    ctx.fillStyle = sichtbar(s.farbe);
+    ctx.beginPath();
+    ctx.arc(x, y, rr, 0, Math.PI*2);
+    ctx.fill();
+  }
+}
+
+function texteZeichnen(r, dpr, schnitt){
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.textBaseline = "alphabetic";
+  const X = (x) => sicht.x + x*sicht.m;
+  const Y = (y) => sicht.y - y*sicht.m;
+  for (const t of PLAN.texte){
+    if (schnitt && (t.x < schnitt.x0 || t.x > schnitt.x1 || t.y < schnitt.y0 || t.y > schnitt.y1)) continue;
+    const h = t.h * sicht.m;
+    if (h < 5 || h > 300) continue;
+    const x = X(t.x), y = Y(t.y);
+    if (x < -200 || y < -200 || x > r.width+200 || y > r.height+200) continue;
+    ctx.save();
+    ctx.translate(x, y);
+    if (t.dreh) ctx.rotate(-t.dreh);
+    ctx.font = h.toFixed(1) + "px -apple-system,Segoe UI,Helvetica,Arial,sans-serif";
+    ctx.fillStyle = anzeige.farbe ? sichtbar(t.farbe) : "#1B2430";
+    ctx.fillText(t.s, 0, 0);
+    ctx.restore();
+  }
+}
+
+/* ---- Fußleiste ---- */
+async function angabenZeigen(){
+  if (!PLAN) return;
+  const b = PLAN.rand;
+  const a = await frage({
+    titel: PLAN.name,
+    text: [
+      "Datei: " + PLAN.dateiname,
+      "Eingelesen: " + datumText(PLAN.angelegt),
+      "Zeichenteile: " + zahl(PLAN.teilzahl),
+      "Texte: " + zahl(PLAN.texte.length),
+      "Standorte: " + zahl(standorteAktiv(PLAN).length) + " von " + zahl(PLAN.standorte.length) + " Kreisen",
+      "Mit eigener Standnummer: " + zahl((PLAN.standorte || []).filter(x => x.nummer).length) +
+        " · Reichweite " + REICHWEITE,
+      "Verteiler: " + zahl(verteilerListe().filter(v => v.art !== "mobil").length) +
+        " fest, " + zahl(mobileListe().length) + " mobil",
+      "Verbraucher: " + zahl(verteilerListe().reduce((n,v) =>
+        n + (v.abgaenge || []).filter(a => a.verbraucher).length, 0)),
+      (() => {
+        const n = verteilerListe().reduce((k,v) =>
+          k + (v.abgaenge || []).filter(a => a.verbraucher && a.verbraucher.ortVeraltet).length, 0);
+        return n ? "Davon an weggefallenen Standorten: " + zahl(n) : "";
+      })(),
+      PLAN.aktualisiert ? "Zuletzt ersetzt: " + datumText(PLAN.aktualisiert) : "",
+      "Ausdehnung: " + zahl(Math.round(b.x1-b.x0)) + " × " + zahl(Math.round(b.y1-b.y0)) + " Einheiten",
+      PLAN.uebergangen ? "Übergangen: " + zahl(PLAN.uebergangen) + " Teile weit außerhalb" : "",
+    ].filter(Boolean).join("\n"),
+    knoepfe: [
+      { text:"Standnummern neu zuordnen", wert:"nummern" },
+      { text:"Standortfarben wählen", wert:"farben", art:"leer" },
+      { text:"Schließen", wert:null, art:"leer" },
+    ],
+  });
+  if (a.wahl === "farben") farbenWaehlen();
+  if (a.wahl === "nummern"){
+    const e = await formular({
+      titel: "Standnummern zuordnen",
+      text: "Nur Nummern innerhalb dieser Reichweite werden einem Kreis fest zugeordnet. " +
+            "Kreise ohne eigene Nummer bekommen den Bezug auf die nächstgelegene.",
+      felder: [{ art:"zahl", name:"reichweite", beschriftung:"Reichweite in Zeichnungseinheiten",
+                 wert: String(REICHWEITE) }],
+      knoepfe: [{ text:"Zuordnen", wert:true }, { text:"Abbrechen", wert:false, art:"leer" }],
+    });
+    if (!e.wahl) return;
+    const wert = Number(String(e.werte.reichweite).replace(",", "."));
+    REICHWEITE = (isFinite(wert) && wert > 0) ? Math.min(500, wert) : REICHWEITE;
+    await reichweiteSpeichern(REICHWEITE);
+
+    const b = standnummernZuordnen(PLAN);
+    PLAN.nummernBilanz = b;
+    await planSpeichern(PLAN);
+    zeichne();
+    await hinweis("Standnummern zugeordnet", [
+      "Reichweite: " + REICHWEITE + " Einheiten",
+      b.gefunden + " Nummern im Plan gefunden (Buchstabe und zwei Ziffern)",
+      b.zugeordnet + " von " + zahl(PLAN.standorte.length) + " Kreisen haben eine eigene Nummer",
+      b.mitBezug ? b.mitBezug + " Kreise tragen den Bezug „Nahe …“" : "",
+      b.ungenutzt ? b.ungenutzt + " Nummern gehören zu keinem Kreis" : "",
+      b.groesster ? "Größter zugeordneter Abstand: " + b.groesster.toFixed(1) + " Einheiten" : "",
+      b.doppelt.length ? "Doppelt vergeben: " + b.doppelt.join(", ") : "",
+    ].filter(Boolean).join("\n"));
+  }
+}
+
+/* Welche Farben gelten als Standort? */
+function farbenWaehlen(){
+  const zaehler = new Map();
+  for (const s of PLAN.standorte) zaehler.set(s.farbe, (zaehler.get(s.farbe)||0) + 1);
+  const reihen = [...zaehler.entries()].sort((x,y) => y[1]-x[1]);
+  const aus = new Set(PLAN.farbenAus || []);
+
+  const f = $("fenster");
+  f.innerHTML = "";
+  const h = document.createElement("h3");
+  h.textContent = "Standortfarben";
+  f.appendChild(h);
+  const p = document.createElement("p");
+  p.textContent = "Angehakte Farben zählen als Verbraucherstandort.";
+  f.appendChild(p);
+
+  const liste = document.createElement("div");
+  liste.className = "farbliste";
+  reihen.forEach(([farbe, anzahl]) => {
+    const zeile = document.createElement("button");
+    zeile.className = "farbzeile" + (aus.has(farbe) ? "" : " an");
+    zeile.innerHTML =
+      '<span class="probe" style="background:' + sichtbar(farbe) + '"></span>' +
+      '<span class="anzahl"></span><span class="haken">✓</span>';
+    zeile.querySelector(".anzahl").textContent =
+      anzahl === 1 ? "1 Kreis" : anzahl + " Kreise";
+    zeile.addEventListener("click", () => {
+      if (aus.has(farbe)) aus.delete(farbe); else aus.add(farbe);
+      zeile.classList.toggle("an", !aus.has(farbe));
+    });
+    liste.appendChild(zeile);
+  });
+  f.appendChild(liste);
+
+  const box = document.createElement("div");
+  box.className = "fensterknoepfe";
+  const ok = document.createElement("button");
+  ok.className = "knopf";
+  ok.textContent = "Übernehmen";
+  ok.addEventListener("click", async () => {
+    $("schleier").classList.remove("an");
+    PLAN.farbenAus = [...aus];
+    await planSpeichern(PLAN);
+    zeichne();
+  });
+  const ab = document.createElement("button");
+  ab.className = "knopf leer";
+  ab.textContent = "Abbrechen";
+  ab.addEventListener("click", () => $("schleier").classList.remove("an"));
+  box.appendChild(ok); box.appendChild(ab);
+  f.appendChild(box);
+
+  $("schleier").classList.add("an");
+}
+
+/* ---- Ausschnitt festlegen ---- */
+
+function zuschnittStarten(){
+  if (!PLAN) return;
+  zuschneiden = true;
+  auswahl = null;
+  $("fussZuschnitt").hidden = false;
+  werkzeugKnoepfe();
+  const st = $("streifen");
+  st.textContent = "Rechteck über den Bereich ziehen, den du brauchst";
+  st.hidden = false;
+  zeichne();
+}
+
+function zuschnittBeenden(){
+  zuschneiden = false;
+  auswahl = null;
+  $("fussZuschnitt").hidden = true;
+  $("streifen").hidden = true;
+  werkzeugKnoepfe();
+}
+
+$("zAb").addEventListener("click", () => { zuschnittBeenden(); zeichne(); });
+
+$("zGanz").addEventListener("click", async () => {
+  AUSSCHNITT = null;
+  await ausschnittSpeichern(null);
+  zuschnittBeenden();
+  einpassen();
+});
+
+$("zUebernehmen").addEventListener("click", async () => {
+  if (!auswahl || Math.abs(auswahl.x1-auswahl.x0) < 16 || Math.abs(auswahl.y1-auswahl.y0) < 16){
+    return hinweis("Kein Bereich gewählt",
+      "Zieh mit dem Finger oder der Maus ein Rechteck über den Bereich, den du brauchst. " +
+      "„Ganzer Plan“ hebt eine bestehende Einschränkung wieder auf.");
+  }
+  const n = PLAN.nullpunkt;
+  const welt = (sx, sy) => ({ x:(sx - sicht.x)/sicht.m + n.x, y:(sicht.y - sy)/sicht.m + n.y });
+  const a = welt(auswahl.x0, auswahl.y1);   // unten links
+  const b = welt(auswahl.x1, auswahl.y0);   // oben rechts
+  AUSSCHNITT = { x0:Math.min(a.x,b.x), y0:Math.min(a.y,b.y),
+                 x1:Math.max(a.x,b.x), y1:Math.max(a.y,b.y) };
+  await ausschnittSpeichern(AUSSCHNITT);
+  zuschnittBeenden();
+  einpassen();
+});
+
+/* ---- Verteiler ---- */
+
+function verteilerLeisteAuffrischen(){
+  const v = verteilerListe().find(x => x.id === gewaehlt);
+  $("vName").disabled = !v;
+  $("vWeg").disabled = !v;
+  const st = $("streifen");
+  st.textContent = v ? v.name + " gewählt · ziehen verschiebt"
+                     : "Auf den Plan tippen, um einen Verteiler zu setzen";
+  st.hidden = false;
+}
+
+function verteilerModusStarten(){
+  if (!PLAN) return;
+  verteilerModus = true;
+  gewaehlt = null;
+  $("fussVerteiler").hidden = false;
+  werkzeugKnoepfe();
+  verteilerLeisteAuffrischen();
+  zeichne();
+}
+
+$("vFertig").addEventListener("click", () => {
+  verteilerModus = false;
+  gewaehlt = null;
+  $("fussVerteiler").hidden = true;
+  $("streifen").hidden = true;
+  werkzeugKnoepfe();
+  zeichne();
+});
+
+/* Grenzen fürs Setzen: der Ausschnitt, sonst der Plan selbst. */
+function setzGrenze(){
+  const n = PLAN.nullpunkt;
+  if (AUSSCHNITT) return AUSSCHNITT;
+  const b = PLAN.rand;
+  return { x0:b.x0+n.x, y0:b.y0+n.y, x1:b.x1+n.x, y1:b.y1+n.y };
+}
+const imBereich = (p, g) => p.x >= g.x0 && p.x <= g.x1 && p.y >= g.y0 && p.y <= g.y1;
+
+function schirmZuZeichnung(sx, sy){
+  const n = PLAN.nullpunkt;
+  return { x:(sx - sicht.x)/sicht.m + n.x, y:(sicht.y - sy)/sicht.m + n.y };
+}
+
+async function verteilerSetzen(sx, sy){
+  const p = schirmZuZeichnung(sx, sy);
+  if (!imBereich(p, setzGrenze())){
+    return hinweis("Außerhalb des Ausschnitts",
+      AUSSCHNITT ? "Verteiler lassen sich nur innerhalb des festgelegten Ausschnitts setzen. "
+                 + "Über „Ausschnitt“ kannst du ihn ändern oder ganz aufheben."
+                 : "Diese Stelle liegt außerhalb des Plans.");
+  }
+  if (!PLAN.verteiler) PLAN.verteiler = [];
+  const nummern = PLAN.verteiler.map(v => {
+    const m = /^UV\s*(\d+)$/i.exec(v.name);
+    return m ? Number(m[1]) : 0;
+  });
+  const vorschlag = "UV " + (Math.max(0, ...nummern) + 1);
+
+  const a = await frage({
+    titel: "Verteiler setzen",
+    felder: [{ wert: vorschlag }],
+    knoepfe: [{ text:"Anlegen", wert:true }, { text:"Abbrechen", wert:false, art:"leer" }],
+  });
+  if (!a.wahl) return;
+
+  const v = { id:"uv_" + Date.now().toString(36) + Math.random().toString(36).slice(2,5),
+              name: a.werte[0] || vorschlag, x:p.x, y:p.y };
+  PLAN.verteiler.push(v);
+  gewaehlt = v.id;
+  await planSpeichern(PLAN);
+  verteilerLeisteAuffrischen();
+  zeichne();
+}
+
+$("vName").addEventListener("click", async () => {
+  const v = verteilerListe().find(x => x.id === gewaehlt);
+  if (!v) return;
+  const a = await frage({
+    titel: "Verteiler umbenennen", felder: [{ wert:v.name }],
+    knoepfe: [{ text:"Übernehmen", wert:true }, { text:"Abbrechen", wert:false, art:"leer" }],
+  });
+  if (a.wahl && a.werte[0]){
+    v.name = a.werte[0];
+    await planSpeichern(PLAN);
+    verteilerLeisteAuffrischen();
+    zeichne();
+  }
+});
+
+$("vWeg").addEventListener("click", async () => {
+  const v = verteilerListe().find(x => x.id === gewaehlt);
+  if (!v) return;
+  const a = await frage({
+    titel: "Verteiler löschen", text: "„" + v.name + "“ wird entfernt.",
+    knoepfe: [{ text:"Löschen", wert:true, art:"gefahr" }, { text:"Behalten", wert:false, art:"leer" }],
+  });
+  if (!a.wahl) return;
+  PLAN.verteiler = PLAN.verteiler.filter(x => x.id !== v.id);
+  gewaehlt = null;
+  await planSpeichern(PLAN);
+  verteilerLeisteAuffrischen();
+  zeichne();
+});
+
+/* ---- Ort eines Verbrauchers im Plan wählen ---- */
+
+const EINRAST = 22;   // Bildpunkte, innerhalb derer auf einen Standort gerastet wird
+
+function standortUnter(sx, sy){
+  const n = PLAN.nullpunkt;
+  let beste = null, nah = EINRAST;
+  for (const s of standorteAktiv(PLAN)){
+    const x = sicht.x + s.x*sicht.m, y = sicht.y - s.y*sicht.m;
+    const d = Math.hypot(x-sx, y-sy);
+    if (d < nah){ nah = d; beste = s; }
+  }
+  return beste;
+}
+
+function ortWahlOberflaeche(){
+  schirmZeigen("schirmPlan");
+  $("fussOrt").hidden = false;
+  werkzeugKnoepfe();
+  const st = $("streifen");
+  st.textContent = ortWahl.zweck === "mobil"
+    ? "Stelle antippen, an der der mobile Verteiler steht"
+    : "Auf einen Standort oder eine freie Stelle tippen";
+  st.hidden = false;
+  zeichne();
+}
+function ortWahlStarten(uvId, abgangId){
+  ortWahl = { uvId, abgangId, zweck:"verbraucher" };
+  ortWahlOberflaeche();
+}
+function ortWahlBeenden(zielId){
+  const uv = ortWahl && verteilerListe().find(v => v.id === (zielId || ortWahl.uvId));
+  ortWahl = null;
+  $("fussOrt").hidden = true;
+  $("streifen").hidden = true;
+  werkzeugKnoepfe();
+  if (uv) uvOeffnen(uv); else zeichne();
+}
+$("oAb").addEventListener("click", ortWahlBeenden);
+$("oOhne").addEventListener("click", async () => {
+  const uv = verteilerListe().find(v => v.id === ortWahl.uvId);
+  const ab = uv && uv.abgaenge.find(a => a.id === ortWahl.abgangId);
+  if (ortWahl.zweck === "verbraucher" && ab && ab.verbraucher){
+    ab.verbraucher.x = null; ab.verbraucher.y = null; ab.verbraucher.standort = null;
+  }
+  await planSpeichern(PLAN);
+  ortWahlBeenden();
+});
+
+async function ortSetzen(sx, sy){
+  const uv = verteilerListe().find(v => v.id === ortWahl.uvId);
+  const ab = uv && uv.abgaenge.find(a => a.id === ortWahl.abgangId);
+  if (!ab) return ortWahlBeenden();
+
+  const mobilerZweck = ortWahl.zweck === "mobil";
+  const n = PLAN.nullpunkt;
+  const treffer = mobilerZweck ? null : standortUnter(sx, sy);
+  const p = treffer ? { x:treffer.x + n.x, y:treffer.y + n.y } : schirmZuZeichnung(sx, sy);
+
+  if (!imBereich(p, setzGrenze())){
+    return hinweis("Außerhalb des Ausschnitts",
+      "Es lässt sich nur innerhalb des festgelegten Ausschnitts verorten.");
+  }
+  if (mobilerZweck){
+    const ziel = verteilerListe().find(v => v.id === ortWahl.zielId);
+    if (!ziel) return ortWahlBeenden();
+    ziel.x = p.x; ziel.y = p.y;
+    await planSpeichern(PLAN);
+    return ortWahlBeenden(ziel.id);
+  }
+  if (!ab.verbraucher) return ortWahlBeenden();
+  ab.verbraucher.x = p.x;
+  ab.verbraucher.y = p.y;
+  ab.verbraucher.standort = treffer ? treffer.nr : null;
+  ab.verbraucher.standnummer = treffer ? standortBezeichnung(treffer) : null;
+  ab.verbraucher.ortVeraltet = false;
+  await planSpeichern(PLAN);
+  ortWahlBeenden();
+}
+
+/* ---- Hervorhebung ---- */
+
+const oberflaeche = $("oberflaeche");
+const octx = oberflaeche.getContext("2d");
+let hervorhebung = null;   // {art:"verbraucher"|"verteiler", uvId, abgangId?}
+let laufband = 0;
+let laufbandLaeuft = false;
+let pulsZiel = null;   // Ziel des letzten Suchsprungs, in Zeichnungskoordinaten
+let pulsZeit = 0;
+let markiert = null;   // {art, uvId, abgangId?} – markiertes Objekt, verschiebbar
+const ruhigeAnzeige = window.matchMedia
+  && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const hatOrt = (o) => o && o.x !== null && o.x !== undefined && o.y !== null && o.y !== undefined;
+const verteilerNach = (id) => verteilerListe().find(x => x.id === id);
+
+/* Kette nach oben: vom Verteiler bis zur festen Einspeisung. */
+function aufwaerts(uvId){
+  const kette = [];
+  let id = uvId, schutz = 0;
+  while (id && schutz++ < 30){
+    const v = verteilerNach(id);
+    if (!v) break;
+    kette.push(v);
+    id = (v.art === "mobil" && v.quelle) ? v.quelle.uvId : null;
+  }
+  return kette;   // [eigener, …, feste Einspeisung]
+}
+
+/* Alles, was unterhalb eines Verteilers hängt. */
+function abwaerts(v, ergebnis, tiefe){
+  if (!v || tiefe > 30) return;
+  ergebnis.knoten.push(v);
+  for (const ab of (v.abgaenge || [])){
+    if (ab.mobil){
+      const m = verteilerNach(ab.mobil);
+      if (m){
+        if (hatOrt(v) && hatOrt(m)) ergebnis.strecken.push({ a:v, b:m });
+        abwaerts(m, ergebnis, tiefe+1);
+      }
+    } else if (ab.verbraucher){
+      ergebnis.verbraucher.push(ab.verbraucher);
+      if (hatOrt(v) && hatOrt(ab.verbraucher)) ergebnis.strecken.push({ a:v, b:ab.verbraucher });
+    }
+  }
+}
+
+/* Baut Strecken und Knoten der aktuellen Hervorhebung. */
+function hervorhebungBauen(){
+  if (!hervorhebung) return null;
+  const v = verteilerNach(hervorhebung.uvId);
+  if (!v) return null;
+  const ergebnis = { strecken:[], knoten:[], verbraucher:[], kopf:v };
+
+  if (hervorhebung.art === "verbraucher"){
+    const ab = (v.abgaenge || []).find(a => a.id === hervorhebung.abgangId);
+    if (!ab || !ab.verbraucher) return null;
+    const kette = aufwaerts(v.id).reverse();          // Einspeisung zuerst
+    for (let i=0;i<kette.length-1;i++)
+      if (hatOrt(kette[i]) && hatOrt(kette[i+1]))
+        ergebnis.strecken.push({ a:kette[i], b:kette[i+1] });
+    if (hatOrt(v) && hatOrt(ab.verbraucher))
+      ergebnis.strecken.push({ a:v, b:ab.verbraucher });
+    ergebnis.knoten = kette;
+    ergebnis.verbraucher = [ab.verbraucher];
+    ergebnis.abgang = ab;
+    return ergebnis;
+  }
+
+  // Verteiler: alles darunter, bei einem mobilen zusätzlich die Zuleitung
+  if (v.art === "mobil"){
+    const kette = aufwaerts(v.id).reverse();
+    for (let i=0;i<kette.length-1;i++)
+      if (hatOrt(kette[i]) && hatOrt(kette[i+1]))
+        ergebnis.strecken.push({ a:kette[i], b:kette[i+1] });
+    ergebnis.knoten.push(...kette.slice(0,-1));       // der eigene kommt gleich dazu
+  }
+  abwaerts(v, ergebnis, 0);
+  return ergebnis;
+}
+
+function verbraucherUnter(sx, sy){
+  const n = PLAN.nullpunkt;
+  let beste = null, nah = 16;
+  for (const { v, a, b } of alleVerbraucher()){
+    const x = sicht.x + (b.x-n.x)*sicht.m, y = sicht.y - (b.y-n.y)*sicht.m;
+    const d = Math.hypot(x-sx, y-sy);
+    if (d < nah){ nah = d; beste = { art:"verbraucher", uvId:v.id, abgangId:a.id }; }
+  }
+  return beste;
+}
+
+/* Verteiler haben Vorrang, weil ihre Marke größer und gezielter ist. */
+function objektUnter(sx, sy){
+  const uv = verteilerUnter(sx, sy);
+  if (uv) return { art:"verteiler", uvId:uv.id };
+  return verbraucherUnter(sx, sy);
+}
+
+/* Das bewegliche Objekt hinter einer Wahl. */
+function objektVon(wahl){
+  if (!wahl) return null;
+  const v = verteilerNach(wahl.uvId);
+  if (!v) return null;
+  if (wahl.art === "verteiler") return v;
+  const ab = (v.abgaenge || []).find(a => a.id === wahl.abgangId);
+  return (ab && ab.verbraucher) || null;
+}
+
+function markiertSetzen(wahl){
+  markiert = wahl;
+  const st = $("streifen");
+  if (!wahl){
+    if (!verteilerModus && !zuschneiden && !ortWahl && !hervorhebung) st.hidden = true;
+    oberflaecheZeichnen();
+    return;
+  }
+  const v = verteilerNach(wahl.uvId);
+  const o = objektVon(wahl);
+  const name = wahl.art === "verteiler"
+    ? (v ? v.name : "Verteiler")
+    : ((o && o.name) || "Verbraucher");
+  st.textContent = name + " markiert · ziehen verschiebt · tippen hebt auf";
+  st.hidden = false;
+  oberflaecheZeichnen();
+}
+
+/* Nach dem Verschieben eines Verbrauchers die Bindung an einen
+   Standort neu bestimmen – dieselbe Regel wie beim Setzen. */
+function verbraucherNeuBinden(b){
+  const n = PLAN.nullpunkt;
+  let beste = null, nah = EINRAST / Math.max(sicht.m, 1e-6);
+  for (const s of standorteAktiv(PLAN)){
+    const d = Math.hypot((s.x + n.x) - b.x, (s.y + n.y) - b.y);
+    if (d < nah){ nah = d; beste = s; }
+  }
+  if (beste){
+    b.x = beste.x + n.x; b.y = beste.y + n.y;
+    b.standort = beste.nr;
+    b.standnummer = standortBezeichnung(beste);
+  } else {
+    b.standort = null;
+    b.standnummer = null;
+  }
+  b.ortVeraltet = false;
+}
+
+const gleicheWahl = (a, b) => a && b && a.art === b.art && a.uvId === b.uvId &&
+                              (a.abgangId || null) === (b.abgangId || null);
+
+function hervorhebungWaehlen(wahl){
+  hervorhebung = wahl;
+  const st = $("streifen");
+  if (!wahl){
+    if (!verteilerModus && !zuschneiden && !ortWahl) st.hidden = true;
+    laufbandLaeuft = false;
+    oberflaecheZeichnen();
+    return;
+  }
+  const daten = hervorhebungBauen();
+  if (!daten){ hervorhebung = null; return; }
+
+  if (wahl.art === "verbraucher"){
+    const kette = aufwaerts(daten.kopf.id);
+    const weg = kette.slice().reverse().map((k, i) => {
+      if (i === 0) return k.name;
+      const eltern = kette[kette.length - i];
+      const q = k.quelle && (eltern.abgaenge || []).findIndex(a => a.id === k.quelle.abgangId);
+      return (q >= 0 ? "Abg. " + (q+1) + " → " : "") + k.name;
+    }).join(" · ");
+    const nr = daten.kopf.abgaenge.indexOf(daten.abgang) + 1;
+    st.textContent = (daten.abgang.verbraucher.name || "Verbraucher") +
+                     " ← " + weg + " · Abg. " + nr;
+  } else {
+    const mobile = daten.knoten.filter(k => k.art === "mobil" && k.id !== daten.kopf.id).length;
+    const teile = [];
+    teile.push(daten.verbraucher.length === 1 ? "1 Verbraucher" : daten.verbraucher.length + " Verbraucher");
+    if (mobile) teile.push(mobile === 1 ? "1 mobiler Verteiler" : mobile + " mobile Verteiler");
+    st.textContent = daten.kopf.name + " · " + teile.join(", ");
+  }
+  st.hidden = false;
+  laufbandStarten();
+  oberflaecheZeichnen();
+}
+
+function laufbandStarten(){
+  if (laufbandLaeuft || ruhigeAnzeige) return;
+  laufbandLaeuft = true;
+  let zuletzt = performance.now();
+  const schritt = (jetzt) => {
+    if (!laufbandLaeuft || !(hervorhebung || pulsZiel)){ laufbandLaeuft = false; return; }
+    const d = jetzt - zuletzt;
+    laufband += d * 0.03;    // rund 30 Bildpunkte je Sekunde
+    pulsZeit += d;
+    zuletzt = jetzt;
+    oberflaecheZeichnen();
+    requestAnimationFrame(schritt);
+  };
+  requestAnimationFrame(schritt);
+}
+
+/* Nach einem Sprung aus der Suche pulsiert eine Aura um das Ziel,
+   bis irgendwo im Plan getippt wird. */
+const PULS_DAUER = 1500;   // Millisekunden je Welle
+function pulsSetzen(punktAbsolut){
+  pulsZiel = punktAbsolut ? { x:punktAbsolut.x, y:punktAbsolut.y } : null;
+  pulsZeit = 0;
+  if (pulsZiel) laufbandStarten(); else oberflaecheZeichnen();
+}
+function pulsZeichnen(){
+  if (!pulsZiel) return;
+  const n = PLAN.nullpunkt;
+  const x = sicht.x + (pulsZiel.x-n.x)*sicht.m;
+  const y = sicht.y - (pulsZiel.y-n.y)*sicht.m;
+
+  for (const versatz of [0, 0.5]){
+    const t = ((pulsZeit / PULS_DAUER) + versatz) % 1;
+    const r = 14 + t*36;
+    const deckung = 0.5 * (1 - t) * (1 - t);
+    octx.beginPath();
+    octx.arc(x, y, r, 0, Math.PI*2);
+    octx.strokeStyle = "rgba(23,114,107," + deckung.toFixed(3) + ")";
+    octx.lineWidth = 3;
+    octx.stroke();
+  }
+  // ruhiger Schein direkt am Objekt
+  const puls = 0.10 + 0.10 * (0.5 + 0.5*Math.cos(2*Math.PI * (pulsZeit/PULS_DAUER)));
+  octx.beginPath();
+  octx.arc(x, y, 15, 0, Math.PI*2);
+  octx.fillStyle = "rgba(23,114,107," + puls.toFixed(3) + ")";
+  octx.fill();
+}
+
+/* Das markierte Objekt bekommt einen gestrichelten Ring – ruhig, damit
+   er nicht mit den laufenden Linien des Versorgungswegs verwechselt wird. */
+function markierungZeichnen(){
+  if (!markiert) return;
+  const o = objektVon(markiert);
+  if (!hatOrt(o)) return;
+  const n = PLAN.nullpunkt;
+  const x = sicht.x + (o.x-n.x)*sicht.m, y = sicht.y - (o.y-n.y)*sicht.m;
+  const r = markiert.art === "verteiler" ? 22 : 16;
+  octx.setLineDash([]);
+  octx.beginPath(); octx.arc(x, y, r, 0, Math.PI*2);
+  octx.strokeStyle = "rgba(255,255,255,.9)"; octx.lineWidth = 6; octx.stroke();
+  octx.setLineDash([6,5]);
+  octx.strokeStyle = "#17726B"; octx.lineWidth = 2.5; octx.stroke();
+  octx.setLineDash([]);
+}
+
+function oberflaecheZeichnen(){
+  const r = $("leinwandRahmen").getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  octx.setTransform(1,0,0,1,0,0);
+  octx.clearRect(0, 0, oberflaeche.width, oberflaeche.height);
+  if (!PLAN) return;
+  octx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  pulsZeichnen();
+  markierungZeichnen();
+  if (!hervorhebung) return;
+
+  const daten = hervorhebungBauen();
+  if (!daten) return;
+
+  const n = PLAN.nullpunkt;
+  const auf = (o) => ({ x: sicht.x + (o.x-n.x)*sicht.m, y: sicht.y - (o.y-n.y)*sicht.m });
+  octx.lineCap = "round";
+
+  for (const st of daten.strecken){
+    const a = auf(st.a), b = auf(st.b);
+    octx.beginPath(); octx.moveTo(a.x, a.y); octx.lineTo(b.x, b.y);
+    octx.setLineDash([]);
+    octx.strokeStyle = "rgba(255,255,255,.85)"; octx.lineWidth = 6; octx.stroke();
+    octx.setLineDash([9,7]);
+    octx.lineDashOffset = -laufband;
+    octx.strokeStyle = "#17726B"; octx.lineWidth = 3; octx.stroke();
+  }
+  octx.setLineDash([]);
+
+  for (const k of daten.knoten){
+    if (!hatOrt(k)) continue;
+    const p = auf(k);
+    const stark = k.id === daten.kopf.id;
+    octx.beginPath(); octx.arc(p.x, p.y, stark ? 19 : 17, 0, Math.PI*2);
+    octx.strokeStyle = "rgba(255,255,255,.9)"; octx.lineWidth = stark ? 6 : 5; octx.stroke();
+    octx.strokeStyle = "#17726B"; octx.lineWidth = stark ? 3.5 : 2.5; octx.stroke();
+  }
+
+  for (const b of daten.verbraucher){
+    if (!hatOrt(b)) continue;
+    const p = auf(b);
+    octx.beginPath(); octx.arc(p.x, p.y, 13, 0, Math.PI*2);
+    octx.strokeStyle = "rgba(255,255,255,.9)"; octx.lineWidth = 6; octx.stroke();
+    octx.strokeStyle = "#17726B"; octx.lineWidth = 3; octx.stroke();
+  }
+}
+
+/* ---- Verschieben und Zoomen ---- */
+let zieht = false, letzterX = 0, letzterY = 0, ankerX = 0, ankerY = 0;
+let bewegt = false, ziehZiel = null, ziehArt = null;
+const zeiger = new Map();
+const TIPP_SCHWELLE = 6;   // darunter gilt es als Tippen, nicht als Ziehen
+const DOPPEL_FENSTER = 320;   // Millisekunden zwischen zwei Tipps
+let letzterTippZeit = 0, letzterTippWahl = null;
+let tippUhr = null;   // wartende Hervorhebung, damit beim Doppeltipp nichts aufblitzt
+function tippUhrAbbrechen(){ if (tippUhr){ clearTimeout(tippUhr); tippUhr = null; } }
+const LANGE_DAUER = 500;   // Millisekunden bis zum langen Druck
+let langUhr = null, langAusgeloest = false;
+function langAbbrechen(){ if (langUhr){ clearTimeout(langUhr); langUhr = null; } }
+function markierungLoeschen(){
+  const a = window.getSelection && window.getSelection();
+  if (a && a.removeAllRanges) a.removeAllRanges();
+}
+
+/* Zustand der Zwei-Finger-Geste. Wird bei jeder Änderung der Fingerzahl
+   neu gesetzt, sonst rechnet der nächste Impuls mit einer Lage von vorher
+   und das Bild springt. */
+let kneifAbstand = 0, kneifMitte = null;
+
+const zeigerImRahmen = (r) =>
+  [...zeiger.values()].map(p => ({ x:p.x - r.left, y:p.y - r.top }));
+
+function gesteNeuSetzen(r){
+  const pk = zeigerImRahmen(r);
+  if (pk.length >= 2){
+    kneifAbstand = Math.hypot(pk[0].x-pk[1].x, pk[0].y-pk[1].y);
+    kneifMitte = { x:(pk[0].x+pk[1].x)/2, y:(pk[0].y+pk[1].y)/2 };
+  } else {
+    kneifAbstand = 0; kneifMitte = null;
+  }
+  if (pk.length === 1){                 // Bezug fürs Verschieben nachziehen
+    letzterX = pk[0].x + r.left;
+    letzterY = pk[0].y + r.top;
+  }
+}
+
+/* Vergrößerung begrenzen, damit man sich nicht verliert. */
+function vergroesserungBegrenzen(){
+  if (!basisM) return;
+  sicht.m = Math.max(basisM*0.3, Math.min(basisM*400, sicht.m));
+}
+
+/* Um einen Punkt zoomen: der Weltpunkt unter "von" liegt danach unter "nach". */
+function zoomen(f, von, nach){
+  const vorher = sicht.m;
+  sicht.m *= f;
+  vergroesserungBegrenzen();
+  const wirklich = sicht.m / vorher;
+  sicht.x = nach.x - (von.x - sicht.x) * wirklich;
+  sicht.y = nach.y + (sicht.y - von.y) * wirklich;
+}
+
+/* Nur einmal je Bild zeichnen, nicht je Fingerimpuls. */
+let zeichenAuftrag = false;
+function neuZeichnen(){
+  if (zeichenAuftrag) return;
+  zeichenAuftrag = true;
+  requestAnimationFrame(() => { zeichenAuftrag = false; zeichne(); });
+}
+
+leinwand.addEventListener("pointerdown", ev => {
+  leinwand.setPointerCapture(ev.pointerId);
+  const r = $("leinwandRahmen").getBoundingClientRect();
+  if (zuschneiden){
+    ankerX = ev.clientX - r.left; ankerY = ev.clientY - r.top;
+    auswahl = { x0:ankerX, y0:ankerY, x1:ankerX, y1:ankerY };
+    zieht = true;
+    return;
+  }
+  zeiger.set(ev.pointerId, { x:ev.clientX, y:ev.clientY });
+  zieht = true;
+  bewegt = false; ziehZiel = null; ziehArt = null;
+  ankerX = ev.clientX - r.left; ankerY = ev.clientY - r.top;
+  if (verteilerModus){ ziehZiel = verteilerUnter(ankerX, ankerY); ziehArt = "verteiler"; }
+  gesteNeuSetzen(r);
+  inBewegung = true;
+
+  langAbbrechen();
+  langAusgeloest = false;
+  if (verteilerModus || zuschneiden || ortWahl || zeiger.size !== 1) return;
+
+  const unterm = objektUnter(ankerX, ankerY);
+
+  // Ein bereits markiertes Objekt lässt sich sofort ziehen.
+  if (markiert && unterm && gleicheWahl(unterm, markiert)){
+    ziehZiel = objektVon(markiert);
+    ziehArt = markiert.art;
+    return;
+  }
+  if (unterm && !markiert){
+    langUhr = setTimeout(() => {
+      langUhr = null;
+      langAusgeloest = true;
+      markierungLoeschen();
+      pulsSetzen(null);
+      tippUhrAbbrechen();
+      markiertSetzen(unterm);
+      ziehZiel = objektVon(unterm);
+      ziehArt = unterm.art;
+      bewegt = false;
+      setTimeout(markierungLoeschen, 0);   // der Finger liegt noch auf
+    }, LANGE_DAUER);
+  }
+});
+
+leinwand.addEventListener("pointermove", ev => {
+  if (!zieht) return;
+  const r = $("leinwandRahmen").getBoundingClientRect();
+
+  if (zuschneiden){
+    const x = ev.clientX - r.left, y = ev.clientY - r.top;
+    auswahl = { x0:Math.min(ankerX, x), y0:Math.min(ankerY, y),
+                x1:Math.max(ankerX, x), y1:Math.max(ankerY, y) };
+    neuZeichnen();
+    return;
+  }
+
+  zeiger.set(ev.pointerId, { x:ev.clientX, y:ev.clientY });
+
+  if (zeiger.size >= 2){
+    bewegt = true;
+    langAbbrechen();
+    const pk = zeigerImRahmen(r);
+    const abstand = Math.hypot(pk[0].x-pk[1].x, pk[0].y-pk[1].y);
+    const mitte = { x:(pk[0].x+pk[1].x)/2, y:(pk[0].y+pk[1].y)/2 };
+    if (kneifAbstand > 0 && abstand > 0){
+      const f = Math.max(0.5, Math.min(2, abstand / kneifAbstand));
+      zoomen(f, kneifMitte, mitte);      // zoomen und zugleich mitschieben
+    }
+    kneifAbstand = abstand;
+    kneifMitte = mitte;
+    neuZeichnen();
+    return;
+  }
+
+  if (Math.abs(ev.clientX - (r.left+ankerX)) > TIPP_SCHWELLE ||
+      Math.abs(ev.clientY - (r.top+ankerY)) > TIPP_SCHWELLE){ bewegt = true; langAbbrechen(); }
+
+  if (ziehZiel && bewegt && (verteilerModus || markiert)){
+    const p = schirmZuZeichnung(ev.clientX - r.left, ev.clientY - r.top);
+    if (imBereich(p, setzGrenze())){ ziehZiel.x = p.x; ziehZiel.y = p.y; }
+    letzterX = ev.clientX; letzterY = ev.clientY;
+    neuZeichnen();
+    oberflaecheZeichnen();
+    return;
+  }
+
+  sicht.x += ev.clientX - letzterX;
+  sicht.y += ev.clientY - letzterY;
+  letzterX = ev.clientX; letzterY = ev.clientY;
+  neuZeichnen();
+});
+
+["pointerup","pointercancel","lostpointercapture"].forEach(n =>
+  leinwand.addEventListener(n, async ev => {
+    langAbbrechen();
+    if (langAusgeloest){ langAusgeloest = false; zeiger.delete(ev.pointerId); return; }
+    if (!zeiger.has(ev.pointerId) && !zuschneiden) return;
+    zeiger.delete(ev.pointerId);
+    const r = $("leinwandRahmen").getBoundingClientRect();
+
+    if (zeiger.size){          // ein Finger liegt noch auf: Bezug neu setzen
+      gesteNeuSetzen(r);
+      return;
+    }
+    zieht = false;
+    kneifAbstand = 0; kneifMitte = null;
+    inBewegung = false;
+    neuZeichnen();             // ohne Bewegung wieder vollständig zeichnen
+    if (n !== "pointerup"){ ziehZiel = null; return; }
+
+    if (!verteilerModus){
+      if (ziehZiel && bewegt){                  // markiertes Objekt verschoben
+        if (ziehArt === "verbraucher") verbraucherNeuBinden(ziehZiel);
+        await planSpeichern(PLAN);
+        ziehZiel = null; ziehArt = null;
+        neuZeichnen();
+        return;
+      }
+      if (!bewegt && !zuschneiden){
+        const sx = ev.clientX - r.left, sy = ev.clientY - r.top;
+        if (ortWahl){ ortSetzen(sx, sy); }
+        else if (markiert){                     // jeder Tipp hebt die Markierung auf
+          markiertSetzen(null);
+          letzterTippWahl = null;               // zählt nicht als erster von zweien
+        }
+        else {
+          const wahl = objektUnter(sx, sy);
+          const jetzt = performance.now();
+          const doppelt = wahl && letzterTippWahl && gleicheWahl(wahl, letzterTippWahl) &&
+                          (jetzt - letzterTippZeit) < DOPPEL_FENSTER;
+          letzterTippZeit = jetzt;
+          letzterTippWahl = wahl;
+          tippUhrAbbrechen();
+          pulsSetzen(null);
+
+          if (doppelt && wahl.art === "verteiler"){
+            letzterTippWahl = null;
+            const v = verteilerNach(wahl.uvId);
+            if (v){
+              hervorhebungWaehlen(null);   // der Doppeltipp öffnet nur, er hebt nichts hervor
+              uvOeffnen(v);
+              ziehZiel = null; ziehArt = null;
+              return;
+            }
+          }
+
+          const ziel = gleicheWahl(wahl, hervorhebung) ? null : wahl;
+          if (wahl && wahl.art === "verteiler"){
+            // Nur hier ist ein Doppeltipp möglich, also nur hier abwarten.
+            tippUhr = setTimeout(() => { tippUhr = null; hervorhebungWaehlen(ziel); }, DOPPEL_FENSTER);
+          } else {
+            hervorhebungWaehlen(ziel);
+          }
+        }
+      }
+      ziehZiel = null; ziehArt = null;
+      return;
+    }
+
+    if (ziehZiel && bewegt){                    // verschoben
+      await planSpeichern(PLAN);
+      ziehZiel = null; ziehArt = null;
+      return;
+    }
+    if (!bewegt){                               // getippt
+      const sx = ev.clientX - r.left, sy = ev.clientY - r.top;
+      const treffer = verteilerUnter(sx, sy);
+      if (treffer){
+        gewaehlt = (gewaehlt === treffer.id) ? null : treffer.id;
+        verteilerLeisteAuffrischen();
+        neuZeichnen();
+      } else {
+        verteilerSetzen(sx, sy);
+      }
+    }
+    ziehZiel = null; ziehArt = null;
+  }));
+
+leinwand.addEventListener("contextmenu", ev => ev.preventDefault());
+leinwand.addEventListener("wheel", ev => {
+  ev.preventDefault();
+  const r = $("leinwandRahmen").getBoundingClientRect();
+  const m = { x:ev.clientX - r.left, y:ev.clientY - r.top };
+  zoomen(Math.exp(-ev.deltaY * 0.0015), m, m);
+  neuZeichnen();
+}, { passive:false });
+
+const groesseNachfuehren = () => { if (PLAN){ groesseSetzen(); zeichne(); } };
+window.addEventListener("resize", groesseNachfuehren);
+window.addEventListener("orientationchange", groesseNachfuehren);
+if (window.visualViewport) window.visualViewport.addEventListener("resize", groesseNachfuehren);
+
+/* ================================================================== */
+/* 6 · Ein Verteiler: Zuleitung, RCD-Gruppen, Abgänge                  */
+/* ================================================================== */
+
+let UV = null;   // der geöffnete Verteiler
+
+const neueKennung = (v) => v + "_" + Date.now().toString(36) + Math.random().toString(36).slice(2,5);
+
+function uvOeffnen(v){
+  UV = v;
+  if (!UV.art) UV.art = "fest";
+  if (UV.art !== "mobil" && !UV.zuleitung)
+    UV.zuleitung = { herkunft:"", sicherung:{ art:"gG", kennlinie:null, strom:63, ma:null } };
+  if (!UV.rcds) UV.rcds = [];
+  if (!UV.abgaenge) UV.abgaenge = [];
+  $("uvTitel").textContent = UV.name + (UV.art === "mobil" ? " · mobil" : "");
+  uvZeichnen();
+  schirmZeigen("schirmUV");
+}
+$("uvZurueck").addEventListener("click", () => {
+  UV = null;
+  schirmZeigen("schirmPlan");
+  zeichne();
+});
+
+const merken = () => planSpeichern(PLAN);
+
+function zeile({ nr, oben, unten, beiKlick }){
+  const b = document.createElement("button");
+  b.className = "zeile";
+  b.innerHTML = (nr !== undefined ? '<span class="nr"></span>' : '') +
+                '<span class="haupt"><span class="oben"></span><span class="unten"></span></span>' +
+                '<span class="pfeil">›</span>';
+  if (nr !== undefined) b.querySelector(".nr").textContent = nr;
+  b.querySelector(".oben").textContent = oben;
+  b.querySelector(".unten").textContent = unten || "";
+  b.addEventListener("click", beiKlick);
+  return b;
+}
+
+function uvZeichnen(){
+  const ziel = $("uvInhalt");
+  ziel.innerHTML = "";
+
+  const ueberschrift = (t) => { const h = document.createElement("h2"); h.textContent = t; ziel.appendChild(h); };
+  const knopf = (t, beiKlick, art) => {
+    const b = document.createElement("button");
+    b.className = "knopf" + (art ? " " + art : "");
+    b.textContent = t;
+    b.addEventListener("click", beiKlick);
+    ziel.appendChild(b);
+    return b;
+  };
+
+  /* --- Zuleitung --- */
+  ueberschrift("Zuleitung");
+  if (UV.art === "mobil"){
+    const q = UV.quelle && verteilerListe().find(v => v.id === UV.quelle.uvId);
+    const qab = q && (q.abgaenge || []).find(a => a.id === UV.quelle.abgangId);
+    const nr = qab ? q.abgaenge.indexOf(qab) + 1 : null;
+    ziel.appendChild(zeile({
+      oben: q ? q.name + " · Abgang " + nr : "Quelle nicht mehr vorhanden",
+      unten: qab ? [qab.art, sicherungText(qab.sicherung)].join(" · ") : "",
+      beiKlick: () => { if (q) uvOeffnen(q); },
+    }));
+    const p = document.createElement("div");
+    p.className = "platzhalter";
+    p.textContent = "Die Zuleitung ergibt sich aus dem speisenden Abgang und wird dort geändert.";
+    ziel.appendChild(p);
+  } else {
+    ziel.appendChild(zeile({
+      oben: UV.zuleitung.herkunft || "Herkunft nicht angegeben",
+      unten: sicherungText(UV.zuleitung.sicherung),
+      beiKlick: zuleitungBearbeiten,
+    }));
+  }
+
+  /* --- RCD-Gruppen --- */
+  ueberschrift("RCD-Gruppen");
+  if (!UV.rcds.length){
+    const p = document.createElement("div");
+    p.className = "platzhalter";
+    p.textContent = "Keine Gruppe angelegt. Eine Gruppe fasst Abgänge zusammen, die gemeinsam hinter einem RCD liegen.";
+    ziel.appendChild(p);
+  }
+  UV.rcds.forEach(r => {
+    const dahinter = UV.abgaenge.filter(a => a.rcd === r.id).length;
+    ziel.appendChild(zeile({
+      oben: r.name,
+      unten: sicherungText(r.sicherung) + " · " +
+             (dahinter === 1 ? "1 Abgang" : dahinter + " Abgänge"),
+      beiKlick: () => rcdBearbeiten(r),
+    }));
+  });
+  knopf("RCD-Gruppe hinzufügen", rcdHinzufuegen, "leer");
+
+  /* --- Abgänge --- */
+  const frei = UV.abgaenge.filter(a => !a.verbraucher && !a.mobil).length;
+  ueberschrift(UV.abgaenge.length
+    ? UV.abgaenge.length + " Abgänge, " + frei + " frei"
+    : "Abgänge");
+  if (!UV.abgaenge.length){
+    const p = document.createElement("div");
+    p.className = "platzhalter";
+    p.textContent = "Noch keine Abgänge angelegt.";
+    ziel.appendChild(p);
+  }
+  UV.abgaenge.forEach((a, i) => {
+    const r = UV.rcds.find(x => x.id === a.rcd);
+    ziel.appendChild(zeile({
+      nr: i+1,
+      oben: (a.name || a.art) + " — " + verbraucherText(a),
+      unten: [a.art, sicherungText(a.sicherung), r ? "hinter " + r.name : null]
+             .filter(Boolean).join(" · "),
+      beiKlick: () => abgangBearbeiten(a),
+    }));
+  });
+  const b = knopf("Abgänge hinzufügen", abgaengeHinzufuegen);
+  b.style.marginTop = "4px";
+
+  const sb = knopf("Prinzipschaltbild", () => schaltbildZeigen(UV), "leer");
+  sb.style.marginTop = "10px";
+}
+
+/* --- Zuleitung --- */
+async function zuleitungBearbeiten(){
+  const a = await formular({
+    titel: "Zuleitung",
+    felder: [{ art:"text", name:"herkunft", beschriftung:"Herkunft",
+               wert: UV.zuleitung.herkunft, platzhalter:"z. B. HV Halle 2, Abgang 4" }],
+    knoepfe: [{ text:"Absicherung ändern", wert:"sicherung" },
+              { text:"Übernehmen", wert:"ok", art:"leer" },
+              { text:"Abbrechen", wert:null, art:"leer" }],
+  });
+  if (!a.wahl) return;
+  UV.zuleitung.herkunft = a.werte.herkunft.trim();
+  if (a.wahl === "sicherung"){
+    const s = await sicherungWaehlen(UV.zuleitung.sicherung, "Absicherung der Zuleitung");
+    if (s) UV.zuleitung.sicherung = s;
+  }
+  await merken();
+  uvZeichnen();
+}
+
+/* --- RCD-Gruppen --- */
+async function rcdHinzufuegen(){
+  const s = await sicherungWaehlen({ art:"FI", kennlinie:null, strom:40, ma:30 }, "RCD der Gruppe");
+  if (!s) return;
+  const nummern = UV.rcds.map(r => { const m = /^RCD\s*(\d+)$/i.exec(r.name); return m ? Number(m[1]) : 0; });
+  UV.rcds.push({ id: neueKennung("rcd"), name: "RCD " + (Math.max(0, ...nummern) + 1), sicherung: s });
+  await merken();
+  uvZeichnen();
+}
+
+async function rcdBearbeiten(r){
+  const dahinter = UV.abgaenge.filter(a => a.rcd === r.id).length;
+  const a = await formular({
+    titel: r.name,
+    text: sicherungText(r.sicherung) + " · " + (dahinter === 1 ? "1 Abgang" : dahinter + " Abgänge"),
+    felder: [{ art:"text", name:"name", beschriftung:"Bezeichnung", wert:r.name }],
+    knoepfe: [{ text:"Übernehmen", wert:"ok" },
+              { text:"RCD ändern", wert:"sicherung", art:"leer" },
+              { text:"Gruppe löschen", wert:"weg", art:"gefahr" },
+              { text:"Abbrechen", wert:null, art:"leer" }],
+  });
+  if (!a.wahl) return;
+  if (a.wahl === "weg"){
+    const b = await frage({
+      titel: "Gruppe löschen",
+      text: dahinter ? "„" + r.name + "“ wird entfernt. " + dahinter +
+                       (dahinter === 1 ? " Abgang steht danach ohne RCD." : " Abgänge stehen danach ohne RCD.")
+                     : "„" + r.name + "“ wird entfernt.",
+      knoepfe: [{ text:"Löschen", wert:true, art:"gefahr" }, { text:"Behalten", wert:false, art:"leer" }],
+    });
+    if (!b.wahl) return;
+    UV.rcds = UV.rcds.filter(x => x.id !== r.id);
+    UV.abgaenge.forEach(x => { if (x.rcd === r.id) x.rcd = null; });
+  } else {
+    if (a.werte.name.trim()) r.name = a.werte.name.trim();
+    if (a.wahl === "sicherung"){
+      const s = await sicherungWaehlen(r.sicherung, "RCD der Gruppe");
+      if (s) r.sicherung = s;
+    }
+  }
+  await merken();
+  uvZeichnen();
+}
+
+/* --- Abgänge --- */
+/* --- Verbraucher am Abgang --- */
+
+function verbraucherText(ab){
+  if (ab.mobil){
+    const m = verteilerListe().find(v => v.id === ab.mobil);
+    return m ? m.name + " (mobiler Verteiler)" : "frei";
+  }
+  if (!ab.verbraucher) return "frei";
+  const b = ab.verbraucher;
+  const ort = (b.x === null || b.x === undefined) ? "ohne Ort"
+            : b.ortVeraltet ? ((b.standnummer ? b.standnummer + " " : "") + "weggefallen")
+            : (b.standort ? (standortName(PLAN, b.standort) || "Standort " + b.standort)
+                          : "eigener Ort");
+  return (b.name || "Verbraucher") + " · " + ort;
+}
+
+async function verbraucherBearbeiten(ab){
+  const vorhanden = !!ab.verbraucher;
+  const knoepfe = vorhanden
+    ? [{ text:"Übernehmen", wert:"ok" },
+       { text:"Ort im Plan setzen", wert:"ort", art:"leer" },
+       { text:"Verbraucher entfernen", wert:"weg", art:"gefahr" },
+       { text:"Abbrechen", wert:null, art:"leer" }]
+    : [{ text:"Anschließen und Ort wählen", wert:"ort" },
+       { text:"Nur anschließen", wert:"ok", art:"leer" },
+       { text:"Abbrechen", wert:null, art:"leer" }];
+
+  const a = await formular({
+    titel: vorhanden ? "Verbraucher" : "Verbraucher anschließen",
+    text: vorhanden ? undefined : "Jeder Abgang nimmt genau einen Verbraucher auf.",
+    felder: [{ art:"text", name:"name", beschriftung:"Bezeichnung",
+               wert: vorhanden ? ab.verbraucher.name : "",
+               platzhalter:"z. B. Kreissäge, Bauwagen" }],
+    knoepfe,
+  });
+  if (!a.wahl) return false;
+
+  if (a.wahl === "weg"){
+    const b = await frage({
+      titel:"Verbraucher entfernen",
+      text: (ab.verbraucher.name || "Der Verbraucher") + " wird entfernt, der Abgang wird wieder frei.",
+      knoepfe:[{ text:"Entfernen", wert:true, art:"gefahr" }, { text:"Behalten", wert:false, art:"leer" }],
+    });
+    if (!b.wahl) return false;
+    ab.verbraucher = null;
+    await merken();
+    return true;
+  }
+
+  if (!ab.verbraucher) ab.verbraucher = { name:"", x:null, y:null, standort:null };
+  ab.verbraucher.name = a.werte.name.trim();
+  await merken();
+
+  if (a.wahl === "ort"){
+    ortWahlStarten(UV.id, ab.id);
+    return "gewechselt";
+  }
+  return true;
+}
+
+/* --- Mobiler Verteiler am Abgang --- */
+
+function belegung(ab){
+  if (ab.mobil){
+    const m = verteilerListe().find(v => v.id === ab.mobil);
+    return m ? { art:"mobil", v:m } : null;
+  }
+  if (ab.verbraucher) return { art:"verbraucher" };
+  return null;
+}
+
+async function mobilAnschliessen(ab){
+  BESTAND = await bestandHolen();
+  const frei = BESTAND.filter(t => imEinsatz(t.id) < t.anzahl);
+  if (!BESTAND.length){
+    return hinweis("Kein Bestand angelegt",
+      "Trag zuerst auf dem Startbildschirm unter „Bestand mobiler Verteiler“ ein, " +
+      "welche Typen es gibt und wie viele davon.");
+  }
+  if (!frei.length){
+    return hinweis("Nichts mehr verfügbar",
+      "Von jedem Typ sind bereits alle vorhandenen Stücke in diesem Plan verplant.");
+  }
+
+  const nummern = mobileListe().map(v => { const m = /^MV\s*(\d+)$/i.exec(v.name); return m ? Number(m[1]) : 0; });
+  const a = await formular({
+    titel: "Mobilen Verteiler anschließen",
+    text: "Er wird aus dem Bestand entnommen und an diesen Abgang gehängt.",
+    felder: [
+      { art:"wahl", name:"typ", beschriftung:"Typ",
+        optionen: frei.map(t => ({ wert:t.id,
+          text: t.name + " (" + (t.anzahl - imEinsatz(t.id)) + " von " + t.anzahl + " frei)" })) },
+      { art:"text", name:"name", beschriftung:"Bezeichnung", wert:"MV " + (Math.max(0, ...nummern) + 1) },
+    ],
+    knoepfe: [{ text:"Anschließen und Ort wählen", wert:"ort" },
+              { text:"Abbrechen", wert:null, art:"leer" }],
+  });
+  if (!a.wahl) return "abbruch";
+
+  const neu = {
+    id: neueKennung("uv"), art:"mobil", typ:a.werte.typ,
+    name: a.werte.name.trim() || "MV",
+    x: null, y: null,
+    quelle: { uvId: UV.id, abgangId: ab.id },
+    rcds: [], abgaenge: [],
+  };
+  PLAN.verteiler.push(neu);
+  ab.mobil = neu.id;
+  await merken();
+  ortWahl = { uvId: UV.id, abgangId: ab.id, zweck:"mobil", zielId: neu.id };
+  ortWahlOberflaeche();
+  return "gewechselt";
+}
+
+/* Löscht einen mobilen Verteiler samt allem, was daran hängt. */
+function haengtDaran(uvId){
+  let verteiler = 0, verbraucher = 0;
+  const gehe = (id) => {
+    const v = verteilerListe().find(x => x.id === id);
+    if (!v) return;
+    for (const a of (v.abgaenge || [])){
+      if (a.verbraucher) verbraucher++;
+      if (a.mobil){ verteiler++; gehe(a.mobil); }
+    }
+  };
+  gehe(uvId);
+  return { verteiler, verbraucher };
+}
+function mobilEntfernen(uvId){
+  const weg = new Set();
+  const gehe = (id) => {
+    weg.add(id);
+    const v = verteilerListe().find(x => x.id === id);
+    if (!v) return;
+    for (const a of (v.abgaenge || [])) if (a.mobil) gehe(a.mobil);
+  };
+  gehe(uvId);
+  for (const v of verteilerListe())
+    for (const a of (v.abgaenge || [])) if (a.mobil && weg.has(a.mobil)) a.mobil = null;
+  PLAN.verteiler = PLAN.verteiler.filter(v => !weg.has(v.id));
+  if (gewaehlt && weg.has(gewaehlt)) gewaehlt = null;
+}
+
+const rcdOptionen = () =>
+  [{ wert:"", text:"kein RCD" }].concat(UV.rcds.map(r => ({ wert:r.id, text:r.name })));
+
+async function abgaengeHinzufuegen(){
+  const a = await formular({
+    titel: "Abgänge hinzufügen",
+    text: "Gleichartige Abgänge lassen sich in einem Zug anlegen.",
+    felder: [
+      { art:"wahl", name:"art", beschriftung:"Art", optionen: ABGANGSARTEN.map(x => ({ wert:x, text:x })) },
+      { art:"zahl", name:"anzahl", beschriftung:"Anzahl", wert:"1" },
+      { art:"wahl", name:"rcd", beschriftung:"Hinter RCD", optionen: rcdOptionen() },
+    ],
+    knoepfe: [{ text:"Weiter zur Absicherung", wert:true }, { text:"Abbrechen", wert:false, art:"leer" }],
+  });
+  if (!a.wahl) return;
+
+  const anzahl = Math.max(1, Math.min(99, parseInt(a.werte.anzahl, 10) || 1));
+  const vorgabe = /CEE 32|CEE 63|CEE 125/.test(a.werte.art)
+    ? { art:"LS", kennlinie:"C", strom: a.werte.art === "CEE 32A" ? 32 : 63, ma:null }
+    : { art:"LS", kennlinie:"B", strom:16, ma:null };
+  const s = await sicherungWaehlen(vorgabe, "Absicherung der Abgänge");
+  if (!s) return;
+
+  for (let i=0;i<anzahl;i++){
+    UV.abgaenge.push({
+      id: neueKennung("ab"), art: a.werte.art, name: "",
+      sicherung: JSON.parse(JSON.stringify(s)),
+      rcd: a.werte.rcd || null,
+    });
+  }
+  await merken();
+  uvZeichnen();
+}
+
+async function abgangBearbeiten(ab){
+  const nr = UV.abgaenge.indexOf(ab) + 1;
+  const a = await formular({
+    titel: "Abgang " + nr,
+    text: sicherungText(ab.sicherung),
+    felder: [
+      { art:"text", name:"name", beschriftung:"Bezeichnung", wert:ab.name, platzhalter:"frei lassen für die Art" },
+      { art:"wahl", name:"art", beschriftung:"Art", wert:ab.art,
+        optionen: ABGANGSARTEN.map(x => ({ wert:x, text:x })) },
+      { art:"wahl", name:"rcd", beschriftung:"Hinter RCD", wert:ab.rcd || "", optionen: rcdOptionen() },
+    ],
+    knoepfe: [{ text:"Übernehmen", wert:"ok" },
+              ...(ab.mobil
+                ? [{ text:"Mobilen Verteiler öffnen", wert:"mobiloeffnen", art:"leer" },
+                   { text:"Mobilen Verteiler abhängen", wert:"mobilweg", art:"gefahr" }]
+                : ab.verbraucher
+                  ? [{ text:"Verbraucher bearbeiten", wert:"verbraucher", art:"leer" }]
+                  : [{ text:"Verbraucher anschließen", wert:"verbraucher", art:"leer" },
+                     { text:"Mobilen Verteiler anschließen", wert:"mobil", art:"leer" }]),
+              { text:"Absicherung ändern", wert:"sicherung", art:"leer" },
+              { text:"Abgang löschen", wert:"weg", art:"gefahr" },
+              { text:"Abbrechen", wert:null, art:"leer" }],
+  });
+  if (!a.wahl) return;
+  if (a.wahl === "weg"){
+    const b = await frage({
+      titel: "Abgang löschen",
+      text: ab.mobil
+        ? "Abgang " + nr + " wird entfernt. Der daran hängende mobile Verteiler wird abgehängt."
+        : ab.verbraucher
+          ? "Abgang " + nr + " wird entfernt, samt dem angeschlossenen Verbraucher."
+          : "Abgang " + nr + " wird entfernt.",
+      knoepfe: [{ text:"Löschen", wert:true, art:"gefahr" }, { text:"Behalten", wert:false, art:"leer" }],
+    });
+    if (!b.wahl) return;
+    if (ab.mobil) mobilEntfernen(ab.mobil);
+    UV.abgaenge = UV.abgaenge.filter(x => x.id !== ab.id);
+  } else {
+    ab.name = a.werte.name.trim();
+    ab.art = a.werte.art;
+    ab.rcd = a.werte.rcd || null;
+    if (a.wahl === "sicherung"){
+      const s = await sicherungWaehlen(ab.sicherung, "Absicherung des Abgangs");
+      if (s) ab.sicherung = s;
+    }
+    if (a.wahl === "verbraucher"){
+      await merken();
+      const erg = await verbraucherBearbeiten(ab);
+      if (erg === "gewechselt") return;   // die Ortswahl übernimmt
+    }
+    if (a.wahl === "mobil"){
+      await merken();
+      const erg = await mobilAnschliessen(ab);
+      if (erg === "gewechselt") return;
+    }
+    if (a.wahl === "mobiloeffnen"){
+      await merken();
+      const m = verteilerListe().find(v => v.id === ab.mobil);
+      if (m) return uvOeffnen(m);
+    }
+    if (a.wahl === "mobilweg"){
+      const zahlen = haengtDaran(ab.mobil);
+      const m = verteilerListe().find(v => v.id === ab.mobil);
+      const anhang = [];
+      if (zahlen.verteiler) anhang.push(zahlen.verteiler + (zahlen.verteiler === 1 ? " weiterer mobiler Verteiler" : " weitere mobile Verteiler"));
+      if (zahlen.verbraucher) anhang.push(zahlen.verbraucher + (zahlen.verbraucher === 1 ? " Verbraucher" : " Verbraucher"));
+      const b = await frage({
+        titel: "Mobilen Verteiler abhängen",
+        text: (m ? "„" + m.name + "“" : "Der Verteiler") + " wird aus dem Plan entfernt und geht zurück in den Bestand." +
+              (anhang.length ? " Mit entfernt " + (anhang.length > 1 || zahlen.verteiler > 1 || zahlen.verbraucher > 1 ? "werden" : "wird") + ": " + anhang.join(" und ") + "." : ""),
+        knoepfe: [{ text:"Abhängen", wert:true, art:"gefahr" }, { text:"Behalten", wert:false, art:"leer" }],
+      });
+      if (!b.wahl) return;
+      mobilEntfernen(ab.mobil);
+      ab.mobil = null;
+    }
+  }
+  await merken();
+  uvZeichnen();
+}
+
+/* ================================================================== */
+/* 7 · Bestand mobiler Verteiler                                       */
+/* ================================================================== */
+
+let BESTAND = [];
+
+const mobileListe = () => verteilerListe().filter(v => v.art === "mobil");
+const imEinsatz = (typId) => mobileListe().filter(v => v.typ === typId).length;
+
+$("knopfBestand").addEventListener("click", async () => {
+  BESTAND = await bestandHolen();
+  bestandZeichnen();
+  schirmZeigen("schirmBestand");
+});
+$("bZurueck").addEventListener("click", () => {
+  schirmZeigen(PLAN ? "schirmPlan" : "schirmStart");
+  if (PLAN) zeichne(); else listeZeichnen();
+});
+
+function bestandZeichnen(){
+  const ziel = $("bInhalt");
+  ziel.innerHTML = "";
+
+  if (!BESTAND.length){
+    const p = document.createElement("div");
+    p.className = "platzhalter";
+    p.textContent = "Noch kein Typ angelegt. Trag ein, welche mobilen Verteiler es gibt und wie viele davon.";
+    ziel.appendChild(p);
+  }
+  for (const t of BESTAND){
+    const benutzt = PLAN ? imEinsatz(t.id) : 0;
+    ziel.appendChild(zeile({
+      nr: t.anzahl,
+      oben: t.name,
+      unten: PLAN ? (benutzt + " von " + t.anzahl + " in diesem Plan im Einsatz")
+                  : (t.anzahl === 1 ? "1 Stück" : t.anzahl + " Stück"),
+      beiKlick: () => typBearbeiten(t),
+    }));
+  }
+  const b = document.createElement("button");
+  b.className = "knopf";
+  b.textContent = "Typ hinzufügen";
+  b.addEventListener("click", typHinzufuegen);
+  ziel.appendChild(b);
+
+  const hinweisText = document.createElement("p");
+  hinweisText.className = "leise";
+  hinweisText.style.marginTop = "14px";
+  hinweisText.textContent = "Die Stückzahl gilt für den Betrieb. Wie viele davon gerade verplant sind, " +
+                            "wird je Plan gezählt.";
+  ziel.appendChild(hinweisText);
+}
+
+async function typHinzufuegen(){
+  const a = await formular({
+    titel: "Typ hinzufügen",
+    felder: [
+      { art:"text", name:"name", beschriftung:"Bezeichnung", platzhalter:"z. B. Baustromverteiler 63A" },
+      { art:"zahl", name:"anzahl", beschriftung:"Vorhandene Stückzahl", wert:"1" },
+    ],
+    knoepfe: [{ text:"Anlegen", wert:true }, { text:"Abbrechen", wert:false, art:"leer" }],
+  });
+  if (!a.wahl || !a.werte.name.trim()) return;
+  BESTAND.push({
+    id: neueKennung("typ"),
+    name: a.werte.name.trim(),
+    anzahl: Math.max(1, Math.min(999, parseInt(a.werte.anzahl, 10) || 1)),
+  });
+  await bestandSpeichern(BESTAND);
+  bestandZeichnen();
+}
+
+async function typBearbeiten(t){
+  const benutzt = PLAN ? imEinsatz(t.id) : 0;
+  const a = await formular({
+    titel: t.name,
+    text: PLAN && benutzt ? benutzt + (benutzt === 1 ? " Stück ist" : " Stück sind") + " in diesem Plan verplant." : undefined,
+    felder: [
+      { art:"text", name:"name", beschriftung:"Bezeichnung", wert:t.name },
+      { art:"zahl", name:"anzahl", beschriftung:"Vorhandene Stückzahl", wert:String(t.anzahl) },
+    ],
+    knoepfe: [{ text:"Übernehmen", wert:"ok" },
+              { text:"Typ löschen", wert:"weg", art:"gefahr" },
+              { text:"Abbrechen", wert:null, art:"leer" }],
+  });
+  if (!a.wahl) return;
+  if (a.wahl === "weg"){
+    if (benutzt){
+      return hinweis("Typ wird noch genutzt",
+        "In diesem Plan " + (benutzt === 1 ? "steht ein Verteiler" : "stehen " + benutzt + " Verteiler") +
+        " dieses Typs. Entferne sie zuerst aus dem Plan.");
+    }
+    const b = await frage({
+      titel:"Typ löschen", text:"„" + t.name + "“ wird aus dem Bestand entfernt.",
+      knoepfe:[{ text:"Löschen", wert:true, art:"gefahr" }, { text:"Behalten", wert:false, art:"leer" }],
+    });
+    if (!b.wahl) return;
+    BESTAND = BESTAND.filter(x => x.id !== t.id);
+  } else {
+    if (a.werte.name.trim()) t.name = a.werte.name.trim();
+    const neu = Math.max(0, Math.min(999, parseInt(a.werte.anzahl, 10) || 0));
+    if (neu < benutzt){
+      return hinweis("Stückzahl zu klein",
+        "Im Plan " + (benutzt === 1 ? "steht bereits ein Verteiler" : "stehen bereits " + benutzt + " Verteiler") +
+        " dieses Typs. Die Stückzahl kann nicht darunter liegen.");
+    }
+    t.anzahl = neu;
+  }
+  await bestandSpeichern(BESTAND);
+  bestandZeichnen();
+}
+
+/* ================================================================== */
+/* 8 · Planwechsel                                                     */
+/* ================================================================== */
+
+const ABGLEICH_TOLERANZ = 1.0;   // Zeichnungseinheiten
+
+/* Ordnet die Standorte zweier Fassungen einander zu. Verglichen wird die
+   absolute Lage, weil der Bezugspunkt eines Plans aus seinem eigenen
+   Inhalt entsteht und zwischen zwei Fassungen wandern kann. */
+function standorteAbgleichen(alt, neu){
+  const abs = (p) => p.standorte.map(s => ({
+    nr:s.nr, farbe:s.farbe, r:s.r, ax:s.x + p.nullpunkt.x, ay:s.y + p.nullpunkt.y, roh:s }));
+  const a = abs(alt), n = abs(neu);
+  const vergeben = new Set();
+  const paare = new Map();       // alte Nummer -> neuer Standort
+  let farbwechsel = 0;
+
+  for (const s of a){
+    let beste = null, nah = ABGLEICH_TOLERANZ;
+    for (const t of n){
+      if (vergeben.has(t.nr)) continue;
+      const d = Math.hypot(t.ax-s.ax, t.ay-s.ay);
+      if (d < nah){ nah = d; beste = t; }
+    }
+    if (beste){
+      vergeben.add(beste.nr);
+      paare.set(s.nr, beste);
+      if (beste.farbe !== s.farbe) farbwechsel++;
+    }
+  }
+  return {
+    paare, farbwechsel,
+    weggefallen: a.filter(s => !paare.has(s.nr)),
+    hinzugekommen: n.filter(t => !vergeben.has(t.nr)),
+    unveraendert: paare.size,
+  };
+}
+
+/* Übernimmt die Eintragungen der alten Fassung in die neue. */
+function eintragungenUebernehmen(alt, neu, abgleich){
+  neu.id = alt.id;
+  neu.name = alt.name;
+  neu.angelegt = alt.angelegt;
+  neu.aktualisiert = Date.now();
+  neu.farbenAus = alt.farbenAus || [];
+  neu.verteiler = alt.verteiler || [];
+
+  let umgesetzt = 0, verloren = 0;
+  for (const v of neu.verteiler){
+    for (const ab of (v.abgaenge || [])){
+      const b = ab.verbraucher;
+      if (!b || b.standort === null || b.standort === undefined) continue;
+      const treffer = abgleich.paare.get(b.standort);
+      if (treffer){
+        b.standort = treffer.nr;
+        b.standnummer = standortBezeichnung(treffer.roh);
+        b.x = treffer.ax;          // leichte Verschiebungen mitziehen
+        b.y = treffer.ay;
+        b.ortVeraltet = false;
+        umgesetzt++;
+      } else {
+        b.standort = null;
+        b.ortVeraltet = true;      // Lage bleibt, sie bildet die Wirklichkeit ab
+        verloren++;
+      }
+    }
+  }
+  return { umgesetzt, verloren };
+}
+
+async function planAktualisieren(alt){
+  const datei = await dateiWaehlen();
+  if (!datei) return;
+  let neu;
+  try{
+    neu = await dateiEinlesen(datei);
+  }catch(e){
+    arbeitAus();
+    return hinweis("Das hat nicht geklappt", (e && e.message) ? e.message : String(e));
+  }
+  arbeitAus();
+
+  const abgleich = standorteAbgleichen(alt, neu);
+  const eintraege = alt.verteiler ? alt.verteiler.length : 0;
+  const betroffen = (alt.verteiler || []).reduce((n,v) =>
+    n + (v.abgaenge || []).filter(a => a.verbraucher && a.verbraucher.standort).length, 0);
+
+  const a = await frage({
+    titel: "Plan ersetzen?",
+    text: [
+      "Standorte: " + abgleich.unveraendert + " unverändert, " +
+        abgleich.hinzugekommen.length + " neu, " + abgleich.weggefallen.length + " weggefallen",
+      abgleich.farbwechsel ? abgleich.farbwechsel + " davon mit geänderter Farbe" : "",
+      "",
+      "Deine Eintragungen bleiben: " + eintraege +
+        (eintraege === 1 ? " Verteiler" : " Verteiler") + ", " + betroffen +
+        (betroffen === 1 ? " verorteter Verbraucher" : " verortete Verbraucher"),
+      abgleich.weggefallen.length
+        ? "Verbraucher an weggefallenen Standorten behalten ihre Lage und werden gekennzeichnet."
+        : "",
+    ].filter(x => x !== "").join("\n"),
+    knoepfe: [{ text:"Plan ersetzen", wert:true },
+              { text:"Abbrechen", wert:false, art:"leer" }],
+  });
+  if (!a.wahl) return;
+
+  const bilanz = eintragungenUebernehmen(alt, neu, abgleich);
+  await planSpeichern(neu);
+  if (PLAN && PLAN.id === neu.id) await planOeffnen(neu.id);
+  else await listeZeichnen();
+
+  await hinweis("Plan ersetzt",
+    [ bilanz.umgesetzt + (bilanz.umgesetzt === 1 ? " Verbraucher wurde" : " Verbraucher wurden") +
+        " auf den neuen Standort gezogen.",
+      bilanz.verloren
+        ? bilanz.verloren + (bilanz.verloren === 1 ? " Verbraucher steht" : " Verbraucher stehen") +
+          " an einer Stelle, an der im neuen Plan kein Standort mehr ist. " +
+          "Sie sind im Plan gestrichelt gezeichnet und in der Abgangsliste gekennzeichnet."
+        : "",
+      neu.uebergangen ? neu.uebergangen + " Teile lagen weit außerhalb und wurden übergangen." : "",
+    ].filter(Boolean).join("\n\n"));
+}
+
+/* ================================================================== */
+/* 9 · Standnummern                                                    */
+/* ================================================================== */
+
+const NUMMER_MUSTER = /^([A-Za-zÄÖÜäöü])[\s.-]?(\d{2})$/;
+let REICHWEITE = 20;   // Zeichnungseinheiten; darüber hinaus wird nichts zugeordnet.
+                       // Über die Angaben einstellbar, gilt für alle Pläne.
+
+function alsStandnummer(text){
+  const m = NUMMER_MUSTER.exec(String(text || "").trim());
+  return m ? (m[1].toUpperCase() + m[2]) : null;
+}
+
+/* Der gespeicherte Punkt ist die linke Grundlinie. Für den Abstand
+   zählt die Mitte der Beschriftung, sonst zieht es lange Texte schief. */
+function textMitte(t){
+  const breite = 0.55 * t.h * String(t.s).length;
+  const dx = breite/2, dy = t.h * 0.35;
+  const c = Math.cos(t.dreh || 0), s = Math.sin(t.dreh || 0);
+  return { x: t.x + dx*c - dy*s, y: t.y + dx*s + dy*c };
+}
+
+/* Ordnet jedem Kreis die nächste freie Standnummer zu: alle Paare nach
+   Abstand, kürzestes zuerst, beide Beteiligten danach vergeben. */
+function standnummernZuordnen(plan){
+  const kreise = plan.standorte || [];
+  const nummern = [];
+  for (const t of (plan.texte || [])){
+    const n = alsStandnummer(t.s);
+    if (n) nummern.push(Object.assign({ nummer:n }, textMitte(t)));
+  }
+  for (const k of kreise) k.nummer = null;
+
+  const paare = [];
+  for (let i=0;i<kreise.length;i++){
+    for (let j=0;j<nummern.length;j++){
+      const d = Math.hypot(kreise[i].x - nummern[j].x, kreise[i].y - nummern[j].y);
+      if (d <= REICHWEITE) paare.push({ i, j, d });
+    }
+  }
+  paare.sort((a,b) => a.d - b.d);
+
+  const kreisVergeben = new Set(), nummerVergeben = new Set();
+  let zugeordnet = 0, groesster = 0;
+  for (const p of paare){
+    if (kreisVergeben.has(p.i) || nummerVergeben.has(p.j)) continue;
+    kreise[p.i].nummer = nummern[p.j].nummer;
+    kreisVergeben.add(p.i); nummerVergeben.add(p.j);
+    zugeordnet++;
+    if (p.d > groesster) groesster = p.d;
+  }
+
+  /* Wer keine eigene bekommen hat, wird über die nächste Nummer
+     überhaupt beschrieben – "Nahe E04" ist brauchbarer als "Standort 18".
+     Dafür gilt keine Reichweite, es ist nur ein Anhaltspunkt. */
+  let mitBezug = 0;
+  for (const k of kreise){
+    k.naheNummer = null;
+    if (k.nummer) continue;
+    let beste = null, nah = Infinity;
+    for (const n of nummern){
+      const d = Math.hypot(k.x - n.x, k.y - n.y);
+      if (d < nah){ nah = d; beste = n; }
+    }
+    if (beste){ k.naheNummer = beste.nummer; mitBezug++; }
+  }
+
+  // doppelt vergebene Nummern kennzeichnen, falls der Plan sie doppelt führt
+  const zaehler = new Map();
+  for (const k of kreise) if (k.nummer) zaehler.set(k.nummer, (zaehler.get(k.nummer)||0) + 1);
+
+  return {
+    gefunden: nummern.length,
+    zugeordnet,
+    ohne: kreise.length - zugeordnet,
+    mitBezug,
+    ungenutzt: nummern.length - zugeordnet,
+    groesster,
+    doppelt: [...zaehler.entries()].filter(([, n]) => n > 1).map(([n]) => n),
+  };
+}
+
+/* Bezeichnung eines Standorts: eigene Standnummer, sonst der Bezug auf
+   die nächstgelegene, sonst als letzter Ausweg die laufende Nummer. */
+function standortBezeichnung(s){
+  if (!s) return null;
+  if (s.nummer) return s.nummer;
+  if (s.naheNummer) return "Nahe " + s.naheNummer;
+  return "Standort " + s.nr;
+}
+function standortName(plan, nr){
+  return standortBezeichnung((plan.standorte || []).find(x => x.nr === nr));
+}
+
+/* ================================================================== */
+/* 10 · Suche                                                          */
+/* ================================================================== */
+
+const ZIEL_SPANNE = 40;   // so viele Zeichnungseinheiten füllen nach dem Sprung das Bild
+
+/* Springt an eine Stelle im Plan und hebt sie hervor. */
+function anspringen(punktAbsolut, wahl){
+  if (!PLAN || !punktAbsolut) return;
+  const r = groesseSetzen();
+  sicht.m = Math.min(r.width, r.height) / ZIEL_SPANNE;
+  vergroesserungBegrenzen();
+  const n = PLAN.nullpunkt;
+  sicht.x = r.width/2  - (punktAbsolut.x - n.x) * sicht.m;
+  sicht.y = r.height/2 + (punktAbsolut.y - n.y) * sicht.m;
+  hervorhebungWaehlen(wahl || null);
+  zeichne();                 // groesseSetzen hat die Leinwand geleert
+  pulsSetzen(punktAbsolut);
+}
+
+/* Je genauer der Treffer am Anfang steht, desto weiter oben. */
+function trefferGuete(text, suche){
+  const t = String(text || "").toLowerCase();
+  if (t === suche) return 0;
+  if (t.startsWith(suche)) return 1;
+  return t.includes(suche) ? 2 : 99;
+}
+
+function suchen(roh){
+  const q = String(roh || "").trim().toLowerCase();
+  if (!q) return [];
+  const treffer = [];
+
+  for (const v of verteilerListe()){
+    const g = trefferGuete(v.name, q);
+    if (g < 99){
+      const quelle = v.art === "mobil" && v.quelle && verteilerNach(v.quelle.uvId);
+      treffer.push({
+        guete: g, marke: v.art === "mobil" ? "MV" : "UV", uv:true,
+        titel: v.name,
+        unter: (v.art === "mobil" ? "Mobiler Verteiler" : "Verteiler") +
+               (quelle ? " · hängt an " + quelle.name : "") +
+               (hatOrt(v) ? "" : " · ohne Ort"),
+        ziel: hatOrt(v) ? v : null,
+        wahl: { art:"verteiler", uvId:v.id },
+      });
+    }
+    for (const ab of (v.abgaenge || [])){
+      const b = ab.verbraucher;
+      if (!b) continue;
+      const bez = b.standort ? (standortName(PLAN, b.standort) || "") : (b.standnummer || "");
+      const name = b.name || "Verbraucher";
+      const g = Math.min(trefferGuete(name, q), trefferGuete(bez, q));
+      if (g === 99) continue;
+      const nr = v.abgaenge.indexOf(ab) + 1;
+      treffer.push({
+        guete: g, marke: "V", titel: name,
+        unter: [bez || "eigener Ort", v.name + " · Abg. " + nr,
+                hatOrt(b) ? null : "ohne Ort"].filter(Boolean).join(" · "),
+        ziel: hatOrt(b) ? b : (hatOrt(v) ? v : null),
+        wahl: { art:"verbraucher", uvId:v.id, abgangId:ab.id },
+      });
+    }
+  }
+
+  const belegt = new Set();
+  for (const v of verteilerListe())
+    for (const ab of (v.abgaenge || []))
+      if (ab.verbraucher && ab.verbraucher.standort) belegt.add(ab.verbraucher.standort);
+
+  const n = PLAN.nullpunkt;
+  for (const s of standorteAktiv(PLAN)){
+    const bez = standortBezeichnung(s) || "";
+    const g = trefferGuete(bez, q);
+    if (g === 99 || belegt.has(s.nr)) continue;   // belegte stehen schon als Verbraucher drin
+    treffer.push({
+      guete: g + 0.5, marke: "ST", titel: bez,
+      unter: "Standort, frei",
+      ziel: { x: s.x + n.x, y: s.y + n.y },
+      wahl: null,
+    });
+  }
+
+  treffer.sort((a,b) => a.guete - b.guete || a.titel.localeCompare(b.titel, "de"));
+  return treffer.slice(0, 60);
+}
+
+function sucheZeichnen(){
+  const ziel = $("suchListe");
+  const roh = $("suchEingabe").value;
+  ziel.innerHTML = "";
+  if (!roh.trim()){
+    const p = document.createElement("div");
+    p.className = "platzhalter";
+    p.style.textAlign = "center";
+    p.textContent = "Standnummer, Name eines Verteilers oder eines Verbrauchers eingeben.";
+    ziel.appendChild(p);
+    return;
+  }
+  const liste = suchen(roh);
+  if (!liste.length){
+    const p = document.createElement("div");
+    p.className = "platzhalter";
+    p.style.textAlign = "center";
+    p.textContent = "Nichts gefunden.";
+    ziel.appendChild(p);
+    return;
+  }
+  for (const t of liste){
+    const b = document.createElement("button");
+    b.className = "zeile";
+    b.innerHTML = '<span class="marke"></span>' +
+                  '<span class="haupt"><span class="oben"></span><span class="unten"></span></span>' +
+                  '<span class="pfeil">›</span>';
+    const marke = b.querySelector(".marke");
+    marke.textContent = t.marke;
+    if (t.uv) marke.classList.add("uv");
+    b.querySelector(".oben").textContent = t.titel;
+    b.querySelector(".unten").textContent = t.unter;
+    b.addEventListener("click", () => {
+      sucheSchliessen();
+      if (t.ziel) anspringen(t.ziel, t.wahl);
+      else if (t.wahl) hervorhebungWaehlen(t.wahl);
+    });
+    ziel.appendChild(b);
+  }
+}
+
+function sucheOeffnen(){
+  if (!PLAN) return;
+  $("suchEingabe").value = "";
+  $("suchschirm").hidden = false;
+  sucheZeichnen();
+  setTimeout(() => $("suchEingabe").focus(), 60);
+}
+function sucheSchliessen(){
+  $("suchschirm").hidden = true;
+  $("suchEingabe").blur();
+}
+$("knopfSuche").addEventListener("click", sucheOeffnen);
+$("suchAb").addEventListener("click", sucheSchliessen);
+$("suchEingabe").addEventListener("input", sucheZeichnen);
+$("suchEingabe").addEventListener("keydown", (e) => {
+  if (e.key === "Escape") sucheSchliessen();
+  if (e.key === "Enter"){
+    const erste = $("suchListe").querySelector(".zeile");
+    if (erste) erste.click();
+  }
+});
+
+/* ================================================================== */
+/* 11 · Werkzeuge (Zahnrad)                                            */
+/* ================================================================== */
+
+function menueOeffnen(){
+  if (!PLAN) return;
+  const ziel = $("menueInhalt");
+  ziel.innerHTML = "";
+
+  const eintrag = (titel, unten, beiKlick, wert) => {
+    const b = document.createElement("button");
+    b.className = "zeile";
+    b.innerHTML = '<span class="haupt"><span class="oben"></span><span class="unten"></span></span>' +
+                  '<span class="schalterwert"></span>';
+    b.querySelector(".oben").textContent = titel;
+    b.querySelector(".unten").textContent = unten || "";
+    const w = b.querySelector(".schalterwert");
+    if (wert === undefined){ w.textContent = "›"; }
+    else { w.textContent = wert ? "an" : "aus"; w.classList.toggle("an", !!wert); }
+    b.addEventListener("click", beiKlick);
+    ziel.appendChild(b);
+    return b;
+  };
+
+  eintrag("Einpassen", "Ganzen Ausschnitt ins Bild holen",
+    () => { menueSchliessen(); einpassen(); });
+
+  eintrag("Originalfarben", "Sonst Schwarz-Weiß mit farbigen Standorten",
+    () => { anzeige.farbe = !anzeige.farbe; zeichne(); menueOeffnen(); }, anzeige.farbe);
+
+  eintrag("Texte", "Beschriftungen aus der Zeichnung",
+    () => { anzeige.text = !anzeige.text; zeichne(); menueOeffnen(); }, anzeige.text);
+
+  eintrag("Verteiler setzen", "Antippen setzt, Ziehen verschiebt",
+    () => { menueSchliessen(); verteilerModusStarten(); });
+
+  eintrag("Ausschnitt festlegen", AUSSCHNITT ? "Ein Ausschnitt ist gesetzt" : "Zurzeit ganzer Plan",
+    () => { menueSchliessen(); zuschnittStarten(); });
+
+  eintrag("Angaben zum Plan", "Zahlen, Standnummern, Standortfarben",
+    () => { menueSchliessen(); angabenZeigen(); });
+
+  $("menueSchleier").hidden = false;
+}
+function menueSchliessen(){ $("menueSchleier").hidden = true; }
+
+/* Während einer Betriebsart stören Lupe und Zahnrad nur und lägen
+   zudem unter der schwebenden Leiste. */
+function werkzeugKnoepfe(){
+  const leiste = verteilerModus || zuschneiden || !!ortWahl;
+  $("knopfSuche").hidden = leiste;
+  $("knopfMenue").hidden = leiste;
+}
+
+$("knopfMenue").addEventListener("click", menueOeffnen);
+$("menueSchleier").addEventListener("click", (e) => {
+  if (e.target === $("menueSchleier")) menueSchliessen();
+});
+
+/* ================================================================== */
+/* 12 · Prinzipschaltbild                                              */
+/* ================================================================== */
+
+/* Aufbau wie in der Vorlage: senkrechte Sammelschiene links, Abgänge
+   waagerecht nach rechts, am Ende ein beschriftetes Rechteck. Der Leiter
+   läuft durch die Zeichen hindurch; nur der bewegliche Kontakt eines
+   Schalters hebt sich ab. Gruppen hängen an einer Untersammelschiene. */
+
+const BG_BREITE  = 1024;
+const PDF_BREITE = 1130;
+const S_RAND     = 46;
+const S_NUTZ     = BG_BREITE - 2*S_RAND;   // 932
+
+const X_SCHIENE = 62;    // Hauptsammelschiene
+const X_ADER    = 104;   // Schrägstrich mit Aderzahl
+const X_GERAET  = 210;   // Mitte des Schutzorgans
+const X_UNTER   = 340;   // Untersammelschiene einer Gruppe
+const X_GERAET2 = 452;   // Schutzorgan hinter der Untersammelschiene
+const X_KASTEN  = 640;   // linke Kante des Zielrechtecks
+const B_KASTEN  = 286;
+const H_KASTEN  = 36;
+
+const Y_KOPF   = 92;     // erste Abgangszeile
+const Y_ZEILE  = 76;
+
+const esc = (t) => String(t == null ? "" : t)
+  .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+
+const L = (x1,y1,x2,y2,w) =>
+  `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#000" stroke-width="${w||1.3}"/>`;
+const T = (x,y,txt,groesse,anker,fett) =>
+  `<text x="${x}" y="${y}" font-size="${groesse||11}" font-family="Helvetica,Arial"` +
+  ` text-anchor="${anker||"start"}"${fett?' font-weight="700"':''} fill="#000">${esc(txt)}</text>`;
+
+/* ---- Schaltzeichen ---- */
+
+/* Sicherung: Rechteck sitzt auf dem Leiter, Diagonale hindurch.
+   Der Leiter wird nicht unterbrochen. */
+function symSicherung(x, y){
+  return `<rect x="${x-26}" y="${y-11}" width="52" height="22" fill="#fff" stroke="#000" stroke-width="1.3"/>` +
+         L(x-30, y+13, x+30, y-13, 1.3);
+}
+
+/* Schaltkontakt: der bewegliche Teil hebt sich vom Leiter ab */
+function symKontakt(x, y){
+  return L(x-26, y, x-12, y, 1.3) +
+         L(x-12, y, x+13, y-17, 1.4) +
+         L(x+12, y, x+26, y, 1.3);
+}
+
+/* Auslöserpfeil am Kontaktende */
+function symAusloeser(x, y){
+  return `<path d="M ${x+8} ${y-13} L ${x+16} ${y-19} L ${x+11} ${y-23} Z" fill="#000"/>` +
+         L(x+13, y-25, x+20, y-20, 1.2);
+}
+
+/* Leitungsschutzschalter */
+function symLs(x, y){ return symKontakt(x, y) + symAusloeser(x, y); }
+
+/* FI und FI/LS werden wie ein Schalter gezeichnet; unterschieden werden
+   sie über die Polzahl am Schrägstrich und die Beschriftung. */
+function symRcd(x, y){ return symKontakt(x, y) + symAusloeser(x, y); }
+function symFiLs(x, y){ return symKontakt(x, y) + symAusloeser(x, y); }
+
+/* Schrägstrich mit Ziffer für Adern- oder Polzahl */
+function symZahl(x, y, zahl){
+  if (!zahl) return "";
+  return L(x-7, y+8, x+7, y-8, 1.2) + T(x+9, y-8, String(zahl), 10.5, "start");
+}
+
+/* Zielrechteck mit Beschriftung */
+function symKasten(y, oben, unten){
+  let s = `<rect x="${X_KASTEN}" y="${y - H_KASTEN/2}" width="${B_KASTEN}" height="${H_KASTEN}"
+             fill="#fff" stroke="#000" stroke-width="1.3"/>`;
+  if (unten){
+    s += T(X_KASTEN + 12, y - 2, oben, 13, "start", true);
+    s += T(X_KASTEN + 12, y + 13, unten, 11, "start");
+  } else {
+    s += T(X_KASTEN + 12, y + 5, oben, 13, "start", true);
+  }
+  return s;
+}
+
+/* Ein Schalter unterbricht den Leiter, eine Sicherung nicht. */
+function unterbricht(sicherung){
+  const art = sicherung && sicherung.art;
+  return art === "LS" || art === "FI" || art === "FI/LS";
+}
+
+function zeichenFuer(sicherung, x, y, senkrecht){
+  const art = sicherung && sicherung.art;
+  let z;
+  if (art === "gG")         z = symSicherung(x, y);
+  else if (art === "FI")    z = symRcd(x, y);
+  else if (art === "FI/LS") z = symFiLs(x, y);
+  else if (art === "LS")    z = symLs(x, y);
+  else                      z = L(x-26, y, x+26, y, 1.3);
+  // Bei senkrechtem Leiter wird dasselbe Zeichen gedreht, nicht neu erfunden.
+  return senkrecht ? `<g transform="rotate(90 ${x} ${y})">${z}</g>` : z;
+}
+
+/* ---- Ableitungen ---- */
+
+function aderzahl(art){
+  if (!art) return null;
+  if (/^Schuko/i.test(art)) return 3;
+  if (/^CEE/i.test(art))    return 5;
+  return null;
+}
+/* Wie viele Pole unterbricht das Gerät? Ein LS im Drehstromabgang trennt
+   die drei Außenleiter, im Wechselstromkreis einen; ein FI trennt
+   zusätzlich den Neutralleiter. */
+function polzahl(sicherung, art){
+  if (!sicherung || sicherung.art === "ohne") return null;
+  const drei = /^CEE/i.test(art || "");
+  switch (sicherung.art){
+    case "FI":    return 4;
+    case "FI/LS": return drei ? 4 : 2;
+    case "LS":    return drei ? 3 : 1;
+    case "gG":    return 3;
+    default:      return null;
+  }
+}
+function sicherungKurz(s){
+  if (!s || !s.art || s.art === "ohne") return "ohne";
+  if (s.kennlinie) return s.kennlinie + (s.strom ?? "") + "A";
+  return (s.strom ? s.strom + "A" : s.art);
+}
+function sicherungOben(s){
+  if (!s) return "";
+  if (s.art === "gG")    return "NH / Schmelzsicherung";
+  if (s.art === "FI")    return "FI" + (s.ma ? " " + s.ma + "mA" : "");
+  if (s.art === "FI/LS") return "FI/LS" + (s.ma ? " " + s.ma + "mA" : "");
+  return "";
+}
+
+/* ---- Ein Verteiler ---- */
+
+function schaltbildEinerVerteiler(v, nummerVon){
+  const abg = v.abgaenge || [];
+  const rcds = v.rcds || [];
+  const gruppen = rcds.map(r => ({ rcd:r, abgaenge: abg.filter(a => a.rcd === r.id) }))
+                      .filter(g => g.abgaenge.length);
+  const inGruppe = new Set(gruppen.map(g => g.rcd.id));
+  const direkt = abg.filter(a => !a.rcd || !inGruppe.has(a.rcd));
+
+  const teile = [];
+  let y = Y_KOPF;
+  let letzteSchiene = y;
+
+  /* Ein Abgang, waagerecht */
+  const abgangZeichnen = (a, xVon, xGeraet) => {
+    const nr = abg.indexOf(a) + 1;
+    const ziel = a.mobil ? verteilerNach(a.mobil) : null;
+    const b = a.verbraucher;
+
+    if (unterbricht(a.sicherung)){
+      teile.push(L(xVon, y, xGeraet - 26, y, 1.3));
+      teile.push(L(xGeraet + 26, y, X_KASTEN, y, 1.3));
+    } else {
+      teile.push(L(xVon, y, X_KASTEN, y, 1.3));
+    }
+    teile.push(`<circle cx="${xVon}" cy="${y}" r="2.6" fill="#000"/>`);
+    teile.push(symZahl(xVon === X_SCHIENE ? X_ADER : xVon + 42, y, aderzahl(a.art)));
+    teile.push(zeichenFuer(a.sicherung, xGeraet, y));
+    teile.push(symZahl(xGeraet - 38, y, polzahl(a.sicherung, a.art)));
+
+    const oben = sicherungOben(a.sicherung);
+    if (oben) teile.push(T(xGeraet - 26, y - 24, oben, 10.5, "start"));
+    teile.push(T(xGeraet - 26, y + 26, sicherungKurz(a.sicherung), 12, "start"));
+    teile.push(T(xVon + 10, y - 10, "Abg. " + nr + (a.name ? " · " + a.name : ""), 10.5, "start"));
+
+    const kastenOben = a.art || "Abgang";
+    const kastenUnten = ziel ? ziel.name + " · Blatt " + nummerVon(ziel.id)
+                     : b ? (b.name || "Verbraucher") +
+                           (b.standnummer ? " · " + b.standnummer : "")
+                     : "frei";
+    teile.push(symKasten(y, kastenOben, kastenUnten));
+    y += Y_ZEILE;
+  };
+
+  for (const a of direkt){ abgangZeichnen(a, X_SCHIENE, X_GERAET); letzteSchiene = y - Y_ZEILE; }
+
+  for (const g of gruppen){
+    const yStich = y;
+    if (unterbricht(g.rcd.sicherung)){
+      teile.push(L(X_SCHIENE, yStich, X_GERAET - 26, yStich, 1.3));
+      teile.push(L(X_GERAET + 26, yStich, X_UNTER, yStich, 1.3));
+    } else {
+      teile.push(L(X_SCHIENE, yStich, X_UNTER, yStich, 1.3));
+    }
+    teile.push(`<circle cx="${X_SCHIENE}" cy="${yStich}" r="2.6" fill="#000"/>`);
+    teile.push(symZahl(X_ADER, yStich, 5));
+    teile.push(zeichenFuer(g.rcd.sicherung, X_GERAET, yStich));
+    teile.push(symZahl(X_GERAET - 38, yStich, polzahl(g.rcd.sicherung, "CEE")));
+    const oben = sicherungOben(g.rcd.sicherung);
+    if (oben) teile.push(T(X_GERAET - 26, yStich - 24, oben, 10.5, "start"));
+    teile.push(T(X_GERAET - 26, yStich + 26, sicherungKurz(g.rcd.sicherung), 12, "start"));
+    teile.push(T(X_SCHIENE + 10, yStich - 10, g.rcd.name, 10.5, "start", true));
+    letzteSchiene = yStich;
+
+    y += Y_ZEILE;
+    const ersteKind = y;
+    for (const a of g.abgaenge) abgangZeichnen(a, X_UNTER, X_GERAET2);
+    const letztesKind = y - Y_ZEILE;
+    teile.push(L(X_UNTER, yStich, X_UNTER, letztesKind, 1.8));
+    y += 8;
+  }
+
+  /* Einspeisung oben und Hauptsammelschiene */
+  const kopf = [];
+  let zuSicherung = null, zuArt = null;
+  if (v.art === "mobil"){
+    const q = v.quelle && verteilerNach(v.quelle.uvId);
+    const qab = q && (q.abgaenge || []).find(a => a.id === v.quelle.abgangId);
+    const nr = qab ? q.abgaenge.indexOf(qab) + 1 : null;
+    zuSicherung = qab ? qab.sicherung : null;
+    zuArt = qab ? qab.art : null;
+    kopf.push(q ? q.name + " · Abgang " + nr : "Quelle unbekannt");
+    if (zuArt) kopf.push(zuArt);
+  } else {
+    const z = v.zuleitung || {};
+    zuSicherung = z.sicherung;
+    kopf.push("Zuleitung");
+    if (z.herkunft) kopf.push(z.herkunft);
+  }
+  if (unterbricht(zuSicherung)){
+    teile.unshift(L(X_SCHIENE, 84, X_SCHIENE, letzteSchiene, 2.4));
+    teile.unshift(L(X_SCHIENE, 16, X_SCHIENE, 32, 2.4));
+  } else {
+    teile.unshift(L(X_SCHIENE, 16, X_SCHIENE, letzteSchiene, 2.4));
+  }
+  teile.unshift(symZahl(X_SCHIENE, 26, polzahl(zuSicherung, zuArt || "CEE")));
+  teile.unshift(zeichenFuer(zuSicherung, X_SCHIENE, 58, true));
+  teile.unshift(T(X_SCHIENE + 44, 52, kopf[0], 12, "start", true));
+  teile.unshift(T(X_SCHIENE + 44, 68,
+    [sicherungOben(zuSicherung), sicherungKurz(zuSicherung), kopf[1]]
+      .filter(Boolean).join(" · "), 11, "start"));
+
+  return { svg: teile.join("\n"), breite: S_NUTZ, hoehe: y + 20 };
+}
+
+/* ---- Alle Blätter eines Baums ---- */
+
+function schaltbildBlaetter(wurzel){
+  const reihenfolge = [];
+  (function gehe(v, tiefe){
+    if (!v || tiefe > 20) return;
+    reihenfolge.push(v);
+    for (const a of (v.abgaenge || [])) if (a.mobil) gehe(verteilerNach(a.mobil), tiefe+1);
+  })(wurzel, 0);
+
+  const nummerVon = (id) => reihenfolge.findIndex(v => v.id === id) + 1;
+  return reihenfolge.map((v, i) => ({
+    v, nr: i+1, gesamt: reihenfolge.length,
+    bild: schaltbildEinerVerteiler(v, nummerVon),
+  }));
+}
+
+function schaltbildHtml(wurzel){
+  const blaetter = schaltbildBlaetter(wurzel);
+  const heute = new Date().toLocaleDateString("de-DE",
+    { day:"2-digit", month:"2-digit", year:"numeric" });
+
+  const abschnitte = blaetter.map(b => {
+    const v = b.v;
+    const unter = v.art === "mobil" ? "Mobiler Verteiler" : "Verteiler";
+    return `<section class="blatt">
+      <div class="kopf">
+        <div><span class="name">${esc(v.name)}</span><span class="art">${unter}</span></div>
+        <div class="zaehler">Blatt ${b.nr} von ${b.gesamt}</div>
+      </div>
+      <svg viewBox="0 0 ${b.bild.breite} ${b.bild.hoehe}" width="${b.bild.breite}" height="${b.bild.hoehe}">
+        ${b.bild.svg}
+      </svg>
+    </section>`;
+  }).join("\n");
+
+  return `<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8">
+<title>Prinzipschaltbild</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#fff;color:#000;
+       font:14px/1.45 Helvetica,Arial,sans-serif;
+       -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{width:${PDF_BREITE}px;margin:0 auto}
+  .bogen{width:${BG_BREITE}px;margin:0 auto;padding:28px 0 40px}
+  .titel{border-bottom:2px solid #000;padding:0 ${S_RAND}px 10px;margin-bottom:18px}
+  .titel h1{font-size:19px;margin:0 0 3px}
+  .titel .unter{font-size:12.5px;color:#333}
+  .blatt{padding:0 ${S_RAND}px;margin-bottom:26px;page-break-inside:avoid;break-inside:avoid}
+  .kopf{display:flex;align-items:baseline;justify-content:space-between;
+        border-bottom:1px solid #000;padding-bottom:5px;margin-bottom:10px}
+  .kopf .name{font-size:16px;font-weight:700}
+  .kopf .art{font-size:12.5px;color:#333;margin-left:10px}
+  .kopf .zaehler{font-size:12px;color:#333}
+  svg{display:block}
+  .fuss{padding:14px ${S_RAND}px 0;border-top:1px solid #000;
+        font-size:11.5px;color:#333;margin-top:10px}
+</style></head>
+<body><div class="bogen">
+  <div class="titel">
+    <h1>Prinzipschaltbild — ${esc(wurzel.name)}</h1>
+    <div class="unter">${esc(PLAN ? PLAN.name : "")} · Stand ${heute}</div>
+  </div>
+  ${abschnitte}
+  <div class="fuss">Einpolige Darstellung. Schaltzeichen nach DIN EN 60617.
+  Angaben aus SF E-Plan; maßgeblich ist die Anlage vor Ort.</div>
+</div></body></html>`;
+}
+
+
+/* ---- Empfänger, Voransicht und Weitergabe ---- */
+
+let EMPFAENGER = "";
+const empfaengerHolen = () => dbTun("readonly", s => s.get("empfaenger"), EINST)
+  .then(e => (e && e.wert) || "");
+const empfaengerSpeichern = (wert) =>
+  dbTun("readwrite", s => s.put({ id:"empfaenger", wert }), EINST);
+
+let schaltbildStand = null;   // {html, name, wurzel}
+
+async function schaltbildZeigen(v){
+  EMPFAENGER = await empfaengerHolen();
+  const html = schaltbildHtml(v);
+  const d = new Date();
+  const stempel = String(d.getFullYear()).slice(2) + "-" +
+                  String(d.getMonth()+1).padStart(2,"0") + "-" +
+                  String(d.getDate()).padStart(2,"0");
+  schaltbildStand = { html, name: stempel + " Schaltbild " + v.name, wurzel:v };
+  $("sbRahmen").srcdoc = html;
+  empfaengerZeile();
+  schirmZeigen("schirmSchaltbild");
+}
+function empfaengerZeile(){
+  $("sbEmpfaenger").textContent = EMPFAENGER
+    ? "Empfänger: " + EMPFAENGER + " · ändern"
+    : "Empfänger festlegen";
+}
+$("sbEmpfaenger").addEventListener("click", async () => {
+  const a = await formular({
+    titel: "Empfänger",
+    text: "Die Adresse wird im Dateinamen mitgegeben; der Kurzbefehl liest sie dort aus. " +
+          "Ohne Eintrag bleibt es bei der im Kurzbefehl hinterlegten Adresse.",
+    felder: [{ art:"text", name:"mail", beschriftung:"E-Mail-Adresse", wert:EMPFAENGER,
+               platzhalter:"name@firma.de" }],
+    knoepfe: [{ text:"Übernehmen", wert:true }, { text:"Abbrechen", wert:false, art:"leer" }],
+  });
+  if (!a.wahl) return;
+  EMPFAENGER = a.werte.mail.trim();
+  await empfaengerSpeichern(EMPFAENGER);
+  empfaengerZeile();
+});
+$("sbZurueck").addEventListener("click", () => {
+  schaltbildStand = null;
+  $("sbRahmen").srcdoc = "";
+  schirmZeigen(UV ? "schirmUV" : "schirmPlan");
+  if (!UV) zeichne();
+});
+
+$("sbTeilen").addEventListener("click", async () => {
+  if (!schaltbildStand) return;
+  const name = schaltbildStand.name + (EMPFAENGER ? "__" + EMPFAENGER : "") + ".html";
+  const datei = new File([schaltbildStand.html], name, { type:"text/html" });
+  try{
+    if (navigator.canShare && navigator.canShare({ files:[datei] })){
+      await navigator.share({ files:[datei] });   // ohne Titel, sonst kommt ein Textobjekt mit
+    } else {
+      const url = URL.createObjectURL(datei);
+      const a = document.createElement("a");
+      a.href = url; a.download = name; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    }
+  }catch(e){
+    /* iOS meldet beim Teilen an einen Kurzbefehl fälschlich einen Abbruch. */
+  }
+});
+
+/* ================================================================== */
+
+listeZeichnen();
+</script>
+</body>
+</html>
