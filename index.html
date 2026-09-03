@@ -274,6 +274,18 @@
         Bildschirm mit Herkunft und Schutzorgan. Das Fenster
         verbraucherBearbeiten bleibt für den noch freien Abgang, wo es
         das Anschließen samt Ortswahl in einem Zug erledigt.
+  v1.48 Zustandsanzeige (Zahnrad → Zustandsanzeige, bleibt über einen
+        Neustart hinweg an). Ein Feld über der Seite zeigt die inneren
+        Werte, die bei den unregelmäßigen Aussetzern verdächtig sind:
+        Gestenschalter, aufliegende Finger, Maßstab und Bezugsmaßstab,
+        Leinwand- gegen Rahmenmaß, Seitenversatz und Sichtfenster, Lage
+        des Zahnrads, Zahl der laufenden Laufbänder und der Bilder je
+        Sekunde. Darunter die letzten sechs Ereignisse der ganzen Seite
+        in der Erfassungsphase: pointerdown, pointerup, pointercancel,
+        lostpointercapture, click und Seitenversatz, jeweils mit Ziel,
+        Koordinaten und dem, was an derselben Stelle wirklich liegt.
+        Das Feld nimmt selbst keine Tipps an. An der App ist sonst
+        nichts geändert – erst messen, dann berichtigen.
 -->
 <head>
 <meta charset="utf-8">
@@ -565,6 +577,20 @@
     font-size:13px;line-height:1.35;box-shadow:0 6px 20px rgba(27,36,48,.3);
     word-break:break-word;
   }
+  /* Zeigt die inneren Werte, während gearbeitet wird. Nimmt selbst keine
+     Tipps an, sonst würde sie genau das verfälschen, was sie messen soll.
+     Sie liegt unter dem Fehlerband und über allem anderen. */
+  #zustand{
+    position:fixed;z-index:150;pointer-events:none;
+    top:calc(62px + env(safe-area-inset-top));left:6px;right:6px;
+    background:rgba(27,36,48,.74);color:#EAF0F2;
+    padding:7px 9px;border-radius:10px;
+    font:9.5px/1.32 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    white-space:pre-wrap;word-break:break-word;
+  }
+  #zustand[hidden]{display:none}
+  #zustand .band{display:block;color:#8FD8D0;margin-top:4px;
+                 border-top:1px solid rgba(255,255,255,.18);padding-top:4px}
   .fenster label{display:block;font-size:13px;color:var(--ink-leise);margin:12px 0 2px}
   .fenster select{
     width:100%;padding:12px 14px;border:1px solid var(--linie);border-radius:var(--radius);
@@ -729,13 +755,16 @@
 <!-- ======================= Abfragefenster ======================= -->
 <div id="schleier"><div class="mitte"><div class="fenster" id="fenster"></div></div></div>
 
+<!-- ======================= Zustandsanzeige ======================= -->
+<div id="zustand" hidden></div>
+
 <!-- ======================= Fortschritt ======================= -->
 <div id="arbeit"><div class="rad"></div><div id="arbeitText"></div></div>
 
 <script type="module">
 "use strict";
 
-const FASSUNG = "v1.47 · 03.09.2026";
+const FASSUNG = "v1.48 · 03.09.2026";
 
 /* Ein Fehler in einem Klickhandler bleibt sonst unbemerkt: der Knopf tut
    einfach nichts. Beides – geworfene Fehler und gescheiterte Versprechen –
@@ -1864,6 +1893,7 @@ function verbraucherZeichnen(r, dpr){
 
 function zeichne(){
   if (!PLAN || !bahnen) return;
+  zustandZaehler.plan++;
   const r = $("leinwandRahmen").getBoundingClientRect();
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const schnitt = zuschneiden ? null : ausschnittFuerPlan();
@@ -2515,9 +2545,12 @@ function hervorhebungWaehlen(wahl){
 function laufbandStarten(){
   if (laufbandLaeuft || ruhigeAnzeige) return;
   laufbandLaeuft = true;
+  zustandZaehler.laufband++;
   let zuletzt = performance.now();
   const schritt = (jetzt) => {
-    if (!laufbandLaeuft || !(hervorhebung || pulsZiel)){ laufbandLaeuft = false; return; }
+    if (!laufbandLaeuft || !(hervorhebung || pulsZiel)){
+      laufbandLaeuft = false; zustandZaehler.laufband--; return;
+    }
     const d = jetzt - zuletzt;
     laufband += d * 0.03;    // rund 30 Bildpunkte je Sekunde
     pulsZeit += d;
@@ -2578,6 +2611,7 @@ function markierungZeichnen(){
 }
 
 function oberflaecheZeichnen(){
+  zustandZaehler.flaeche++;
   const r = $("leinwandRahmen").getBoundingClientRect();
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   octx.setTransform(1,0,0,1,0,0);
@@ -4447,6 +4481,9 @@ function menueOeffnen(){
   eintrag("Texte", "Beschriftungen aus der Zeichnung",
     () => { anzeige.text = !anzeige.text; zeichne(); menueOeffnen(); }, anzeige.text);
 
+  eintrag("Zustandsanzeige", "Innere Werte und die letzten Ereignisse",
+    () => { zustandSchalten(!ZUSTAND_AN); menueOeffnen(); }, ZUSTAND_AN);
+
   eintrag("Verteiler setzen", "Antippen setzt, Ziehen verschiebt",
     () => { menueSchliessen(); verteilerModusStarten(); });
 
@@ -5112,8 +5149,206 @@ $("knopfStand").addEventListener("click", async () => {
 });
 
 /* ================================================================== */
+/* 14 · Zustandsanzeige                                                */
+/* ================================================================== */
+
+/* Die Aussetzer werfen keinen Fehler, deshalb bleibt das Fehlerband
+   leer: es klemmt kein Handler, es steht ein Wert falsch. Diese Anzeige
+   legt die fraglichen Werte offen und schreibt mit, was an Ereignissen
+   wirklich ankommt – in der Erfassungsphase am Fenster, also bevor
+   irgendein Handler der App sie zu sehen bekommt. Sie ändert nichts am
+   Ablauf und nimmt selbst keine Tipps an. */
+
+const zustandZaehler = { plan:0, flaeche:0, laufband:0, geister:0 };
+let ZUSTAND_AN = false;
+let zustandUhr = null;
+const zustandBand = [];          // die letzten Ereignisse
+let letzteZeige = null;          // pointerdown, auf den noch ein Klick fehlt
+
+const zustandHolen = () => dbTun("readonly", s => s.get("zustand"), EINST)
+  .then(e => !!(e && e.wert));
+const zustandSpeichern = (wert) =>
+  dbTun("readwrite", s => s.put({ id:"zustand", wert }), EINST);
+
+const zeitText = () => {
+  const d = new Date();
+  return String(d.getMinutes()).padStart(2,"0") + ":" +
+         String(d.getSeconds()).padStart(2,"0") + "." +
+         String(Math.floor(d.getMilliseconds()/100));
+};
+
+/* 0, NaN und Unendlich sollen als das dastehen, was sie sind – gerade
+   sie sind hier ja der Verdacht. */
+const zahlKurz = (n) =>
+  (typeof n === "number" && isFinite(n) && n !== 0) ? n.toPrecision(4) : String(n);
+
+/* Kurzname eines Elements: die eigene Kennung, sonst die des nächsten
+   Vorfahren mit einer, sonst Name und erste Klasse. */
+function kurz(el){
+  if (!el) return "–";
+  if (el.id) return "#" + el.id;
+  const oben = el.closest ? el.closest("[id]") : null;
+  const name = (el.tagName || "?").toLowerCase();
+  if (oben) return name + "<#" + oben.id;
+  const k = (typeof el.className === "string" && el.className.trim().split(/\s+/)[0]) || "";
+  return k ? name + "." + k : name;
+}
+
+function bandZeile(text){
+  zustandBand.push(zeitText() + " " + text);
+  while (zustandBand.length > 6) zustandBand.shift();
+  zustandMalen();
+}
+
+function ereignisNotieren(kurzzeichen, ev){
+  const ziel = ev.target;
+  let t = kurzzeichen + " " + kurz(ziel);
+  if (typeof ev.clientX === "number" && ev.clientX !== undefined){
+    const x = Math.round(ev.clientX), y = Math.round(ev.clientY);
+    t += " " + x + "," + y;
+    const drunter = document.elementFromPoint(x, y);
+    if (drunter !== ziel) t += " ⇒" + kurz(drunter);
+  }
+  if (ev.pointerId !== undefined) t += " №" + ev.pointerId;
+  bandZeile(t);
+}
+
+/* Ereignisse am Fenster, Erfassungsphase: so wird auch mitgeschrieben,
+   was nie bei einem Handler der App ankommt. */
+["pointerdown","pointerup","pointercancel","lostpointercapture","click"].forEach(art => {
+  window.addEventListener(art, ev => {
+    if (!ZUSTAND_AN) return;
+    if (art === "pointerdown"){
+      letzteZeige = { knopf: ev.target && ev.target.closest && ev.target.closest("button"),
+                      klick:false };
+      ereignisNotieren("↓", ev);
+    } else if (art === "click"){
+      if (letzteZeige) letzteZeige.klick = true;
+      ereignisNotieren("✓", ev);
+    } else if (art === "pointerup"){
+      ereignisNotieren("↑", ev);
+      const z = letzteZeige;
+      /* Ein Knopf, auf den gedrückt und losgelassen wurde, muss einen
+         Klick nach sich ziehen. Bleibt der aus, steht es hier. */
+      setTimeout(() => {
+        if (z && !z.klick && z.knopf) bandZeile("! kein Klick auf " + kurz(z.knopf));
+      }, 500);
+    } else {
+      ereignisNotieren(art === "pointercancel" ? "✕" : "⊘", ev);
+    }
+  }, true);
+});
+
+/* Bewegung, obwohl kein Finger aufliegt: der Zustand aus einer früheren
+   Geste steht dann noch. Wird nur gezählt, sonst liefe das Band über. */
+window.addEventListener("pointermove", () => {
+  if (ZUSTAND_AN && zieht && zeiger.size === 0) zustandZaehler.geister++;
+}, true);
+
+/* Nur die Seite selbst, nicht die Listen darin – sonst überschwemmt
+   jedes Wischen in einer Liste das Band. */
+window.addEventListener("scroll", ev => {
+  if (!ZUSTAND_AN) return;
+  const z = ev.target;
+  if (z !== document && z !== document.documentElement && z !== document.body) return;
+  bandZeile("↕ Seite " + Math.round(window.scrollX) + "," + Math.round(window.scrollY));
+}, true);
+
+if (window.visualViewport)
+  window.visualViewport.addEventListener("resize", () => {
+    if (!ZUSTAND_AN) return;
+    const v = window.visualViewport;
+    bandZeile("⤢ Sichtfenster h=" + Math.round(v.height) +
+              " top=" + Math.round(v.offsetTop) + " z=" + v.scale.toFixed(2));
+  });
+
+let vorherPlan = 0, vorherFlaeche = 0, vorherZeit = 0, planJeSek = 0, flaecheJeSek = 0;
+
+function zustandZeilen(){
+  const rahmen = $("leinwandRahmen").getBoundingClientRect();
+  const zr = $("knopfMenue").getBoundingClientRect();
+  const vv = window.visualViewport;
+  const schirm = document.querySelector(".schirm.an");
+  const deckel = [
+    $("schleier").classList.contains("an") ? "Fenster" : null,
+    $("menueSchleier").hidden ? null : "Menü",
+    $("suchschirm").hidden ? null : "Suche",
+    $("arbeit").classList.contains("an") ? "Arbeit" : null,
+  ].filter(Boolean);
+
+  const modus = verteilerModus ? "Verteiler" : zuschneiden ? "Zuschnitt"
+              : ortWahl ? "Ortwahl" : "–";
+
+  return [
+    FASSUNG + " · " + (schirm ? schirm.id : "kein Schirm") +
+      " · Deckel " + (deckel.length ? deckel.join("+") : "–"),
+    "Geste zieht=" + (zieht?1:0) + " bewegt=" + (bewegt?1:0) +
+      " inBew=" + (inBewegung?1:0) + " lang=" + (langAusgeloest?1:0) +
+      (langUhr ? "+Uhr" : "") + " Ziel=" + (ziehZiel ? (ziehArt||"?") : "–") +
+      " Geister=" + zustandZaehler.geister,
+    "Finger " + zeiger.size + " [" + [...zeiger.keys()].join(",") + "]" +
+      " kneif=" + Math.round(kneifAbstand) +
+      " letzt=" + Math.round(letzterX) + "," + Math.round(letzterY),
+    "Sicht m=" + zahlKurz(sicht.m) + " basis=" + zahlKurz(basisM) +
+      " x=" + Math.round(sicht.x) + " y=" + Math.round(sicht.y),
+    "Leinwand " + leinwand.width + "×" + leinwand.height +
+      " Rahmen " + Math.round(rahmen.width) + "×" + Math.round(rahmen.height) +
+      " dpr " + (window.devicePixelRatio || 1),
+    "Seite " + Math.round(window.scrollX) + "," + Math.round(window.scrollY) +
+      (vv ? " · Sichtfenster " + Math.round(vv.width) + "×" + Math.round(vv.height) +
+            " top=" + Math.round(vv.offsetTop) + " z=" + vv.scale.toFixed(2) : ""),
+    "Zahnrad " + Math.round(zr.left) + "," + Math.round(zr.top) +
+      " " + Math.round(zr.width) + "×" + Math.round(zr.height) +
+      (($("knopfMenue").hidden) ? " (verborgen)" : ""),
+    "Modus " + modus + " · mark " + (markiert ? markiert.art : "–") +
+      " · herv " + (hervorhebung ? hervorhebung.art : "–") +
+      " · Bänder " + zustandZaehler.laufband,
+    "Bilder Plan " + planJeSek + "/s Fläche " + flaecheJeSek + "/s" +
+      " · Auftrag " + (zeichenAuftrag ? 1 : 0) + " · Tippuhr " + (tippUhr ? 1 : 0),
+  ];
+}
+
+function zustandMalen(){
+  if (!ZUSTAND_AN) return;
+  const feld = $("zustand");
+  feld.textContent = zustandZeilen().join("\n");
+  const band = document.createElement("span");
+  band.className = "band";
+  band.textContent = zustandBand.length ? zustandBand.join("\n") : "(noch keine Ereignisse)";
+  feld.appendChild(band);
+}
+
+function zustandSchritt(){
+  const jetzt = performance.now();
+  if (jetzt - vorherZeit >= 1000){
+    const anteil = (jetzt - vorherZeit) / 1000;
+    planJeSek = Math.round((zustandZaehler.plan - vorherPlan) / anteil);
+    flaecheJeSek = Math.round((zustandZaehler.flaeche - vorherFlaeche) / anteil);
+    vorherPlan = zustandZaehler.plan;
+    vorherFlaeche = zustandZaehler.flaeche;
+    vorherZeit = jetzt;
+  }
+  zustandMalen();
+}
+
+function zustandSchalten(an, merken){
+  ZUSTAND_AN = !!an;
+  $("zustand").hidden = !ZUSTAND_AN;
+  if (zustandUhr){ clearInterval(zustandUhr); zustandUhr = null; }
+  if (ZUSTAND_AN){
+    vorherZeit = performance.now();
+    vorherPlan = zustandZaehler.plan;
+    vorherFlaeche = zustandZaehler.flaeche;
+    zustandMalen();
+    zustandUhr = setInterval(zustandSchritt, 200);
+  }
+  if (merken !== false) zustandSpeichern(ZUSTAND_AN);
+}
+
+/* ================================================================== */
 
 listeZeichnen();
+zustandHolen().then(an => { if (an) zustandSchalten(true, false); });
 </script>
 </body>
 </html>
