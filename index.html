@@ -2,7 +2,7 @@
 <html lang="de">
 <!--
   SF E-Plan
-  v1.32 · 02.09.2026
+  v1.33 · 02.09.2026
 
   Änderungsliste
   v1.0  Stufe 1: DWG einlesen, Plan dauerhaft ablegen, mehrere Pläne
@@ -158,6 +158,13 @@
         entsprechend schmaler, und gleichartige Geräte stehen weiter
         untereinander. Reicht der Platz vor dem Kasten nicht mehr,
         entfällt dort der Aderstrich.
+  v1.33 Fenster, die höher werden als der Bildschirm, ließen sich nicht
+        mehr bedienen: der Schleier liegt fest über der Seite, die
+        unteren Knöpfe standen außerhalb und waren nicht erreichbar.
+        Der Schleier scrollt jetzt selbst; solange das Fenster passt,
+        steht es weiterhin mittig. Aufgefallen an der Abgangsmaske, die
+        mit dem Knopf für das vorgeschaltete Gerät auf 735 px wuchs,
+        bei 664 px sichtbarer Höhe.
 -->
 <head>
 <meta charset="utf-8">
@@ -348,13 +355,18 @@
   .marke.uv{background:var(--akzent-hell);color:var(--akzent)}
 
   /* ---------- eigene Abfragefenster ---------- */
+  /* Der Schleier scrollt selbst, wenn das Fenster höher wird als der
+     Bildschirm: sonst stehen die unteren Knöpfe außerhalb und lassen
+     sich nicht mehr treffen. align-items:flex-start zusammen mit
+     margin:auto am Fenster hält es mittig, solange es passt. */
   #schleier{
     position:fixed;inset:0;background:rgba(27,36,48,.45);
-    display:none;align-items:center;justify-content:center;padding:20px;z-index:50;
+    display:none;align-items:flex-start;justify-content:center;padding:20px;z-index:50;
+    overflow-y:auto;-webkit-overflow-scrolling:touch;
   }
   #schleier.an{display:flex}
   .fenster{
-    background:var(--grund);border-radius:18px;padding:20px;
+    background:var(--grund);border-radius:18px;padding:20px;margin:auto;
     width:100%;max-width:380px;box-shadow:0 12px 40px rgba(27,36,48,.28);
   }
   .fenster h3{margin:0 0 8px;font-size:17px}
@@ -520,7 +532,7 @@
 <script type="module">
 "use strict";
 
-const FASSUNG = "v1.32 · 02.09.2026";
+const FASSUNG = "v1.33 · 02.09.2026";
 
 /* ================================================================== */
 /* 1 · Kleinkram                                                       */
