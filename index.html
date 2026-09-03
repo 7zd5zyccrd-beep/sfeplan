@@ -2,7 +2,7 @@
 <html lang="de">
 <!--
   SF E-Plan
-  v1.42 · 03.09.2026
+  v1.43 · 03.09.2026
 
   Änderungsliste
   v1.0  Stufe 1: DWG einlesen, Plan dauerhaft ablegen, mehrere Pläne
@@ -227,6 +227,10 @@
         Versprechen werden angezeigt statt still zu verschwinden. Ein
         Fehler in einem Klickhandler sah bisher so aus, als täte der
         Knopf nichts. Antippen blendet das Band aus.
+  v1.43 Fenster stehen wieder mittig. Zentriert wird jetzt in einem
+        Kasten im Schleier, der mindestens dessen Höhe hat und mit dem
+        Inhalt mitwächst – mittig, solange es passt, und trotzdem
+        vollständig scrollbar, wenn es höher wird.
 -->
 <head>
 <meta charset="utf-8">
@@ -431,17 +435,19 @@
 
   /* ---------- eigene Abfragefenster ---------- */
   /* Der Schleier scrollt selbst, wenn das Fenster höher wird als der
-     Bildschirm. Bewusst kein Flex mit margin:auto: ein zentriertes
-     Element, das höher ist als sein scrollender Kasten, ragt oben
-     hinaus, und dieser Teil lässt sich nicht heranscrollen – die oberen
-     Knöpfe wären dann nicht zu treffen. Mit display:block hängt das
-     Fenster immer oben, egal wie hoch es wird. */
+     Bildschirm. Zentriert wird nicht am Schleier, sondern in einem
+     Kasten darin, der mindestens die volle Höhe hat und mit dem Inhalt
+     mitwächst: So steht das Fenster mittig, solange es passt, und ragt
+     doch nie oben aus dem scrollbaren Bereich heraus. */
   #schleier{
     position:fixed;inset:0;background:rgba(27,36,48,.45);
     display:none;padding:20px;z-index:50;
     overflow-y:auto;-webkit-overflow-scrolling:touch;
   }
   #schleier.an{display:block}
+  #schleier .mitte{
+    min-height:100%;display:flex;align-items:center;justify-content:center;
+  }
   .fenster{
     background:var(--grund);border-radius:18px;padding:20px;margin:0 auto;
     width:100%;max-width:380px;box-shadow:0 12px 40px rgba(27,36,48,.28);
@@ -618,7 +624,7 @@
 </div>
 
 <!-- ======================= Abfragefenster ======================= -->
-<div id="schleier"><div class="fenster" id="fenster"></div></div>
+<div id="schleier"><div class="mitte"><div class="fenster" id="fenster"></div></div></div>
 
 <!-- ======================= Fortschritt ======================= -->
 <div id="arbeit"><div class="rad"></div><div id="arbeitText"></div></div>
@@ -626,7 +632,7 @@
 <script type="module">
 "use strict";
 
-const FASSUNG = "v1.42 · 03.09.2026";
+const FASSUNG = "v1.43 · 03.09.2026";
 
 /* Ein Fehler in einem Klickhandler bleibt sonst unbemerkt: der Knopf tut
    einfach nichts. Beides – geworfene Fehler und gescheiterte Versprechen –
