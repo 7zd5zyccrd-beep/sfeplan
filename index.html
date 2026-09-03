@@ -2,7 +2,7 @@
 <html lang="de">
 <!--
   SF E-Plan
-  v1.33 · 02.09.2026
+  v1.35 · 03.09.2026
 
   Änderungsliste
   v1.0  Stufe 1: DWG einlesen, Plan dauerhaft ablegen, mehrere Pläne
@@ -165,6 +165,27 @@
         steht es weiterhin mittig. Aufgefallen an der Abgangsmaske, die
         mit dem Knopf für das vorgeschaltete Gerät auf 735 px wuchs,
         bei 664 px sichtbarer Höhe.
+  v1.34 Reihenfolge der Abgänge änderbar: über der Liste der Knopf
+        "Reihenfolge ändern", danach trägt jede Zeile rechts zwei
+        Pfeilknöpfe und ist selbst nicht mehr anklickbar. Die Nummer ist
+        die Position in der Liste, sie ergibt sich also von selbst neu;
+        Verweise laufen über die Kennung und bleiben unberührt.
+        Verschoben wird nur innerhalb der eigenen Gruppe: ein Abgang
+        hinter einem RCD tauscht mit dem nächsten hinter demselben RCD,
+        ein direkter mit dem nächsten direkten. Am Anfang und Ende der
+        eigenen Gruppe ist der jeweilige Pfeil abgeblendet.
+  v1.35 Stand mitnehmen. Auf dem Startbildschirm "Stand sichern oder
+        übernehmen": die Sicherung nimmt alle Pläne samt Verteilern,
+        dazu Ausschnitt, Reichweite und Bestand mit und ersetzt beim
+        Übernehmen alles auf dem Zielgerät. Über ⋯ an der Plankarte
+        geht ein einzelner Plan als Weitergabe hinaus; der kommt zu dem,
+        was schon da ist, und bei gleicher Kennung wird gefragt, ob
+        ersetzt oder eine Kopie abgelegt wird. Beides läuft über
+        dasselbe Teilen-Menü wie das Schaltbild, mit Download als
+        Rückfall. Die Zahlenfelder der Zeichnung stehen Base64-verpackt
+        in der Datei, sonst wird sie um ein Vielfaches größer. Die Datei
+        trägt die Kennung sf-eplan-stand-v1 und heißt
+        "JJ-MM-TT Name.sfeplan.json".
 -->
 <head>
 <meta charset="utf-8">
@@ -392,6 +413,14 @@
   .zeile .oben{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .zeile .unten{font-size:13px;color:var(--ink-leise);margin-top:2px}
   .zeile .pfeil{color:var(--ink-leise);font-size:18px;flex:0 0 auto}
+  .zeile .sortier{display:flex;gap:8px;flex:0 0 auto}
+  .pfeilknopf{
+    width:42px;height:42px;flex:0 0 auto;border:1px solid var(--linie);
+    border-radius:12px;display:flex;align-items:center;justify-content:center;
+    font-size:14px;color:var(--ink);background:var(--grund);
+  }
+  .pfeilknopf:active{background:var(--flaeche)}
+  .pfeilknopf:disabled{opacity:.25}
   .platzhalter{color:var(--ink-leise);font-size:14px;padding:6px 2px 12px}
   .fenster label{display:block;font-size:13px;color:var(--ink-leise);margin:12px 0 2px}
   .fenster select{
@@ -441,6 +470,7 @@
     <div id="planListe"></div>
     <button class="knopf" id="knopfEinlesen">Plan einlesen</button>
     <button class="knopf leer" id="knopfBestand" style="margin-top:8px">Bestand mobiler Verteiler</button>
+    <button class="knopf leer" id="knopfStand" style="margin-top:8px">Stand sichern oder übernehmen</button>
     <p class="leise" style="margin-top:10px">Zeichnung im Format DWG oder DXF. Sie wird auf diesem Gerät verarbeitet und verlässt es nicht.</p>
     <p class="leise" id="fussnote" style="margin-top:22px;text-align:center"></p>
   </div></div>
@@ -532,7 +562,7 @@
 <script type="module">
 "use strict";
 
-const FASSUNG = "v1.33 · 02.09.2026";
+const FASSUNG = "v1.35 · 03.09.2026";
 
 /* ================================================================== */
 /* 1 · Kleinkram                                                       */
@@ -1260,10 +1290,11 @@ document.body.appendChild(dateiFeld);
 
 /* Liefert die gewählte Datei oder nichts, wenn abgebrochen wurde. */
 let dateiWartend = null;
-function dateiWaehlen(){
+function dateiWaehlen(typen){
   return new Promise(fertig => {
     dateiWartend = fertig;
     dateiFeld.value = "";
+    dateiFeld.accept = typen || ".dwg,.dxf";
     dateiFeld.click();
   });
 }
@@ -1345,6 +1376,7 @@ async function planVerwalten(p){
     knoepfe: [
       { text:"Öffnen", wert:"auf" },
       { text:"Plan durch neue Fassung ersetzen", wert:"neu", art:"leer" },
+      { text:"Plan weitergeben", wert:"geben", art:"leer" },
       { text:"Umbenennen", wert:"name", art:"leer" },
       { text:"Löschen", wert:"weg", art:"gefahr" },
       { text:"Abbrechen", wert:null, art:"leer" },
@@ -1352,6 +1384,7 @@ async function planVerwalten(p){
   });
   if (a.wahl === "auf") return planOeffnen(p.id);
   if (a.wahl === "neu") return planAktualisieren(p);
+  if (a.wahl === "geben") return standSichern(p.id);
   if (a.wahl === "name"){
     const b = await frage({
       titel:"Plan umbenennen", felder:[{ wert:p.name }],
@@ -2628,8 +2661,33 @@ let UV = null;   // der geöffnete Verteiler
 
 const neueKennung = (v) => v + "_" + Date.now().toString(36) + Math.random().toString(36).slice(2,5);
 
+/* Reihenfolge der Abgänge ändern. Die Nummer ist die Position in der
+   Liste, sie ergibt sich also von selbst neu. Verschoben wird nur
+   innerhalb der eigenen Gruppe: ein Abgang hinter einem RCD tauscht mit
+   dem nächsten Abgang hinter demselben RCD, ein direkter mit dem
+   nächsten direkten. */
+let sortModus = false;
+
+function nachbarInGruppe(i, richtung){
+  const liste = UV.abgaenge, g = liste[i].rcd || null;
+  for (let k = i + richtung; k >= 0 && k < liste.length; k += richtung)
+    if ((liste[k].rcd || null) === g) return k;
+  return -1;
+}
+async function abgangVerschieben(a, richtung){
+  const liste = UV.abgaenge;
+  const i = liste.indexOf(a);
+  if (i < 0) return;
+  const k = nachbarInGruppe(i, richtung);
+  if (k < 0) return;
+  liste[i] = liste[k]; liste[k] = a;
+  await merken();
+  uvZeichnen();
+}
+
 function uvOeffnen(v){
   UV = v;
+  sortModus = false;
   if (!UV.art) UV.art = "fest";
   if (UV.art !== "mobil" && !UV.zuleitung)
     UV.zuleitung = { herkunft:"", sicherung:{ art:"gG", kennlinie:null, strom:63, ma:null } };
@@ -2647,16 +2705,31 @@ $("uvZurueck").addEventListener("click", () => {
 
 const merken = () => planSpeichern(PLAN);
 
-function zeile({ nr, oben, unten, beiKlick }){
-  const b = document.createElement("button");
+/* Mit sortier wird die Zeile zur Ablage für zwei Pfeilknöpfe und
+   selbst nicht mehr anklickbar – geschachtelte Knöpfe gäbe es sonst. */
+function zeile({ nr, oben, unten, beiKlick, sortier }){
+  const b = document.createElement(sortier ? "div" : "button");
   b.className = "zeile";
   b.innerHTML = (nr !== undefined ? '<span class="nr"></span>' : '') +
                 '<span class="haupt"><span class="oben"></span><span class="unten"></span></span>' +
-                '<span class="pfeil">›</span>';
+                (sortier
+                  ? '<span class="sortier">' +
+                    '<button class="pfeilknopf" data-weg="auf" aria-label="Nach oben">&#9650;</button>' +
+                    '<button class="pfeilknopf" data-weg="ab" aria-label="Nach unten">&#9660;</button></span>'
+                  : '<span class="pfeil">›</span>');
   if (nr !== undefined) b.querySelector(".nr").textContent = nr;
   b.querySelector(".oben").textContent = oben;
   b.querySelector(".unten").textContent = unten || "";
-  b.addEventListener("click", beiKlick);
+  if (sortier){
+    const auf = b.querySelector('[data-weg="auf"]');
+    const ab  = b.querySelector('[data-weg="ab"]');
+    auf.disabled = !sortier.auf;
+    ab.disabled  = !sortier.ab;
+    auf.addEventListener("click", sortier.beiAuf);
+    ab.addEventListener("click", sortier.beiAb);
+  } else {
+    b.addEventListener("click", beiKlick);
+  }
   return b;
 }
 
@@ -2727,6 +2800,18 @@ function uvZeichnen(){
     p.textContent = "Noch keine Abgänge angelegt.";
     ziel.appendChild(p);
   }
+  if (UV.abgaenge.length > 1){
+    const rk = knopf(sortModus ? "Reihenfolge fertig" : "Reihenfolge ändern",
+                     () => { sortModus = !sortModus; uvZeichnen(); },
+                     sortModus ? "" : "leer");
+    rk.style.marginBottom = "10px";
+  }
+  if (sortModus){
+    const p = document.createElement("div");
+    p.className = "platzhalter";
+    p.textContent = "Abgänge hinter einem RCD bleiben in ihrer Gruppe.";
+    ziel.appendChild(p);
+  }
   UV.abgaenge.forEach((a, i) => {
     const r = UV.rcds.find(x => x.id === a.rcd);
     ziel.appendChild(zeile({
@@ -2735,13 +2820,21 @@ function uvZeichnen(){
       unten: [a.art, kettenText(a), r ? "hinter " + r.name : null]
              .filter(Boolean).join(" · "),
       beiKlick: () => abgangBearbeiten(a),
+      sortier: sortModus ? {
+        auf: nachbarInGruppe(i, -1) >= 0,
+        ab:  nachbarInGruppe(i, +1) >= 0,
+        beiAuf: () => abgangVerschieben(a, -1),
+        beiAb:  () => abgangVerschieben(a, +1),
+      } : null,
     }));
   });
-  const b = knopf("Abgänge hinzufügen", abgaengeHinzufuegen);
-  b.style.marginTop = "4px";
+  if (!sortModus){
+    const b = knopf("Abgänge hinzufügen", abgaengeHinzufuegen);
+    b.style.marginTop = "4px";
 
-  const sb = knopf("Prinzipschaltbild", () => schaltbildZeigen(UV), "leer");
-  sb.style.marginTop = "10px";
+    const sb = knopf("Prinzipschaltbild", () => schaltbildZeigen(UV), "leer");
+    sb.style.marginTop = "10px";
+  }
 }
 
 /* --- Zuleitung --- */
@@ -4057,6 +4150,202 @@ $("sbTeilen").addEventListener("click", async () => {
   }catch(e){
     /* iOS meldet beim Teilen an einen Kurzbefehl fälschlich einen Abbruch. */
   }
+});
+
+/* ================================================================== */
+/* 13 · Stand sichern und übernehmen                                   */
+/* ================================================================== */
+
+/* Eine Standdatei nimmt den Inhalt der Ablage mit auf ein anderes
+   Gerät. Zwei Arten:
+   "gesamt" – alle Pläne samt Ausschnitt, Reichweite und Bestand,
+              gedacht für den Gerätewechsel; ersetzt beim Übernehmen
+              alles, was da ist.
+   "plan"   – ein einzelner Plan zum Weitergeben; wird beim Übernehmen
+              zu dem gelegt, was schon da ist.
+   Die Zeichnung liegt in Zahlenfeldern. Als Text geschrieben wäre die
+   Datei ein Vielfaches so groß, deshalb wandern sie Base64-verpackt
+   hinein. */
+
+const STAND_KENNUNG = "sf-eplan-stand-v1";
+const FELDARTEN = { Uint8Array, Uint32Array, Float32Array };
+
+function b64Aus(feld){
+  const bytes = new Uint8Array(feld.buffer, feld.byteOffset, feld.byteLength);
+  let s = "";
+  for (let i = 0; i < bytes.length; i += 0x8000)          // stückweise, sonst
+    s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));  // reißt der Aufrufstapel
+  return btoa(s);
+}
+function b64Nach(art, text){
+  const roh = atob(text);
+  const bytes = new Uint8Array(roh.length);
+  for (let i = 0; i < roh.length; i++) bytes[i] = roh.charCodeAt(i);
+  return new (FELDARTEN[art])(bytes.buffer);
+}
+
+const ZAHLENFELDER = ["formen","farben","starts","radien","kasten","punkte"];
+
+function planPacken(p){
+  const aus = Object.assign({}, p);
+  for (const name of ZAHLENFELDER){
+    const f = p[name];
+    if (f && f.buffer) aus[name] = { feld: f.constructor.name, b64: b64Aus(f) };
+  }
+  return aus;
+}
+function planEntpacken(p){
+  const aus = Object.assign({}, p);
+  for (const name of ZAHLENFELDER){
+    const f = p[name];
+    if (f && f.b64 !== undefined && FELDARTEN[f.feld]) aus[name] = b64Nach(f.feld, f.b64);
+  }
+  return aus;
+}
+
+function standDateiname(stand, name){
+  const d = new Date(stand.erstellt);
+  const zz = (n) => String(n).padStart(2, "0");
+  const datum = zz(d.getFullYear() % 100) + "-" + zz(d.getMonth()+1) + "-" + zz(d.getDate());
+  /* Die Endung .json bleibt hinten, damit die Dateien-App auf dem
+     iPhone die Datei kennt und die Auswahl sie nicht ausgraut. */
+  return datum + " " + name + ".sfeplan.json";
+}
+
+async function standTeilen(text, dateiname){
+  const datei = new File([text], dateiname, { type:"application/json" });
+  try{
+    if (navigator.canShare && navigator.canShare({ files:[datei] })){
+      await navigator.share({ files:[datei] });   // ohne Titel, sonst kommt ein Textobjekt mit
+    } else {
+      const url = URL.createObjectURL(datei);
+      const a = document.createElement("a");
+      a.href = url; a.download = dateiname; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    }
+  }catch(e){
+    /* iOS meldet beim Teilen fälschlich einen Abbruch. */
+  }
+}
+
+/* nurPlan: Kennung eines Plans, sonst der ganze Stand */
+async function standSichern(nurPlan){
+  const alle = (await alleHolen()) || [];
+  const plaene = nurPlan ? alle.filter(p => p.id === nurPlan) : alle;
+  if (!plaene.length) return hinweis("Nichts zu sichern", "Es liegt kein Plan in der Ablage.");
+
+  arbeitAn("Packe den Stand …");
+  await naechsterRahmen();
+  try{
+    const stand = {
+      kennung: STAND_KENNUNG,
+      art: nurPlan ? "plan" : "gesamt",
+      erstellt: Date.now(),
+      fassung: FASSUNG,
+      plaene: plaene.map(planPacken),
+    };
+    if (!nurPlan){
+      stand.einstellungen = {
+        ausschnitt: await ausschnittHolen(),
+        reichweite: await reichweiteHolen(),
+        bestand:    await bestandHolen(),
+      };
+    }
+    const text = JSON.stringify(stand);
+    const name = standDateiname(stand, nurPlan ? plaene[0].name : "SF E-Plan Stand");
+    arbeitAus();
+    await standTeilen(text, name);
+  }catch(e){
+    arbeitAus();
+    await hinweis("Sichern misslungen", String(e && e.message || e));
+  }
+}
+
+async function standUebernehmen(){
+  const f = await dateiWaehlen(".sfeplan,.json,application/json");
+  if (!f) return;
+  arbeitAn("Lese die Standdatei …");
+  await naechsterRahmen();
+
+  let stand;
+  try{ stand = JSON.parse(await f.text()); }
+  catch(e){ arbeitAus(); return hinweis("Nicht lesbar", "Die Datei ließ sich nicht auswerten."); }
+  if (!stand || stand.kennung !== STAND_KENNUNG || !Array.isArray(stand.plaene)){
+    arbeitAus();
+    return hinweis("Keine Standdatei",
+      "Diese Datei stammt nicht aus SF E-Plan. Zeichnungen liest du über „Plan einlesen“ ein.");
+  }
+  arbeitAus();
+
+  const vorhanden = (await alleHolen()) || [];
+  const anzahl = stand.plaene.length;
+  const wieViele = anzahl === 1 ? "1 Plan" : anzahl + " Pläne";
+
+  if (stand.art === "gesamt"){
+    const a = await frage({
+      titel: "Stand übernehmen",
+      text: wieViele + " aus der Datei" +
+            (vorhanden.length
+              ? ". Alles, was jetzt auf diesem Gerät liegt, wird dabei ersetzt: " +
+                (vorhanden.length === 1 ? "1 Plan" : vorhanden.length + " Pläne") +
+                " samt Verteilern, Ausschnitt und Bestand."
+              : "."),
+      knoepfe: [{ text:"Übernehmen und ersetzen", wert:true, art: vorhanden.length ? "gefahr" : "" },
+                { text:"Abbrechen", wert:false, art:"leer" }],
+    });
+    if (!a.wahl) return;
+
+    arbeitAn("Übernehme den Stand …");
+    await naechsterRahmen();
+    for (const p of vorhanden) await planLoeschen(p.id);
+    for (const p of stand.plaene) await planSpeichern(planEntpacken(p));
+    const e = stand.einstellungen || {};
+    AUSSCHNITT = e.ausschnitt || null;
+    await ausschnittSpeichern(AUSSCHNITT);
+    if (typeof e.reichweite === "number"){ REICHWEITE = e.reichweite; await reichweiteSpeichern(REICHWEITE); }
+    if (Array.isArray(e.bestand)) await bestandSpeichern(e.bestand);
+    arbeitAus();
+    await listeZeichnen();
+    return hinweis("Stand übernommen", wieViele + " und die Einstellungen liegen jetzt auf diesem Gerät.");
+  }
+
+  /* Einzelner Plan: er kommt zu dem, was schon da ist. */
+  const p = stand.plaene[0];
+  const schon = vorhanden.find(x => x.id === p.id);
+  if (schon){
+    const a = await frage({
+      titel: "Plan schon vorhanden",
+      text: "„" + schon.name + "“ liegt bereits auf diesem Gerät. Die Fassung aus der Datei kann ihn " +
+            "ersetzen oder als zweiter Plan danebengelegt werden.",
+      knoepfe: [{ text:"Ersetzen", wert:"ersetzen", art:"gefahr" },
+                { text:"Als Kopie ablegen", wert:"kopie", art:"leer" },
+                { text:"Abbrechen", wert:null, art:"leer" }],
+    });
+    if (!a.wahl) return;
+    if (a.wahl === "kopie"){
+      p.id = "plan_" + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+      p.name = p.name + " (Kopie)";
+    }
+  }
+  arbeitAn("Übernehme den Plan …");
+  await naechsterRahmen();
+  await planSpeichern(planEntpacken(p));
+  arbeitAus();
+  await listeZeichnen();
+  await hinweis("Plan übernommen", "„" + p.name + "“ liegt jetzt in der Ablage.");
+}
+
+$("knopfStand").addEventListener("click", async () => {
+  const a = await frage({
+    titel: "Stand",
+    text: "Zum Gerätewechsel den ganzen Stand sichern und auf dem neuen Gerät übernehmen. " +
+          "Einen einzelnen Plan gibst du über ⋯ an der Plankarte weiter.",
+    knoepfe: [{ text:"Ganzen Stand sichern", wert:"sichern" },
+              { text:"Stand aus Datei übernehmen", wert:"lesen", art:"leer" },
+              { text:"Abbrechen", wert:null, art:"leer" }],
+  });
+  if (a.wahl === "sichern") return standSichern(null);
+  if (a.wahl === "lesen")   return standUebernehmen();
 });
 
 /* ================================================================== */
