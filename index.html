@@ -2,7 +2,7 @@
 <html lang="de">
 <!--
   SF E-Plan
-  v1.38 · 03.09.2026
+  v1.41 · 03.09.2026
 
   Änderungsliste
   v1.0  Stufe 1: DWG einlesen, Plan dauerhaft ablegen, mehrere Pläne
@@ -203,6 +203,26 @@
         dasselbe Bild als SVG, das steckt in der Datei.
   v1.38 Zusätzlich favicon.ico (16, 32, 48 px) neben der index.html:
         Safari wertet SVG als Reitersymbol nicht aus.
+  v1.39 RCD-Gruppen am Bestandstyp: beliebig viele je Typ, jede mit
+        eigenem FI und wahlweise einem vorgeschalteten Gerät als
+        gemeinsame Vorsicherung. Eine Abgangsgruppe trägt jetzt das Feld
+        "Hinter RCD". Beim Anschließen im Plan werden Gruppen und
+        Abgänge mit neuen Kennungen angelegt und die Zuordnung dabei
+        umgeschrieben; der durchgeschleifte Abgang bleibt direkt.
+  v1.40 Die Seite zoomt nicht mehr von selbst. Safari kennt zwei Gesten,
+        die user-scalable=no übergeht: Doppeltippen mit einem Finger und
+        Aufziehen mit zweien. Zwei schnelle Tipps auf denselben Knopf
+        reichten also, um die ganze Seite aufzuziehen – danach lagen die
+        Knöpfe neben ihrer sichtbaren Stelle und trafen ins Leere.
+        body trägt jetzt touch-action:manipulation, und die
+        gesture-Ereignisse werden abgefangen. Die Leinwand behält
+        touch-action:none und ihre eigene Zoomgeste.
+  v1.41 Fenster hängen jetzt immer oben am Schleier statt mittig. Ein
+        mittig gesetztes Element, das höher ist als der scrollende
+        Kasten, ragt oben hinaus, und dieser Teil ist nicht
+        heranzuscrollen – die oberen Knöpfe waren dann nicht zu treffen,
+        die unteren schon. Passt zu Jeans Beobachtung, dass es die
+        oberen häufiger erwischt hat.
 -->
 <head>
 <meta charset="utf-8">
@@ -234,7 +254,13 @@
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   /* Kein Markieren beim langen Drücken; Eingabefelder bleiben ausgenommen. */
-  body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+  /* touch-action:manipulation nimmt Safari das Doppeltippen zum Zoomen weg.
+     Zwei schnelle Tipps auf denselben Knopf – etwa auf die Pfeile im
+     Sortiermodus – zogen sonst die ganze Seite auf, und danach lagen alle
+     Knöpfe neben ihrer sichtbaren Stelle. Die Leinwand bleibt bei
+     touch-action:none, sie führt ihre Gesten selbst. */
+  body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+       touch-action:manipulation}
   input,textarea,select,.fenster p{-webkit-user-select:text;user-select:text}
   html,body{margin:0;padding:0;height:100%;overscroll-behavior:none}
   body{
@@ -401,17 +427,19 @@
 
   /* ---------- eigene Abfragefenster ---------- */
   /* Der Schleier scrollt selbst, wenn das Fenster höher wird als der
-     Bildschirm: sonst stehen die unteren Knöpfe außerhalb und lassen
-     sich nicht mehr treffen. align-items:flex-start zusammen mit
-     margin:auto am Fenster hält es mittig, solange es passt. */
+     Bildschirm. Bewusst kein Flex mit margin:auto: ein zentriertes
+     Element, das höher ist als sein scrollender Kasten, ragt oben
+     hinaus, und dieser Teil lässt sich nicht heranscrollen – die oberen
+     Knöpfe wären dann nicht zu treffen. Mit display:block hängt das
+     Fenster immer oben, egal wie hoch es wird. */
   #schleier{
     position:fixed;inset:0;background:rgba(27,36,48,.45);
-    display:none;align-items:flex-start;justify-content:center;padding:20px;z-index:50;
+    display:none;padding:20px;z-index:50;
     overflow-y:auto;-webkit-overflow-scrolling:touch;
   }
-  #schleier.an{display:flex}
+  #schleier.an{display:block}
   .fenster{
-    background:var(--grund);border-radius:18px;padding:20px;margin:auto;
+    background:var(--grund);border-radius:18px;padding:20px;margin:0 auto;
     width:100%;max-width:380px;box-shadow:0 12px 40px rgba(27,36,48,.28);
   }
   .fenster h3{margin:0 0 8px;font-size:17px}
@@ -586,7 +614,7 @@
 <script type="module">
 "use strict";
 
-const FASSUNG = "v1.38 · 03.09.2026";
+const FASSUNG = "v1.41 · 03.09.2026";
 
 /* ================================================================== */
 /* 1 · Kleinkram                                                       */
@@ -597,6 +625,12 @@ const zahl = (n) => Number(n).toLocaleString("de-DE");
 const datumText = (t) => new Date(t).toLocaleDateString("de-DE",
   { day:"2-digit", month:"2-digit", year:"numeric" });
 const naechsterRahmen = () => new Promise(r => requestAnimationFrame(() => r()));
+
+/* Safari zoomt die Seite auch mit zwei Fingern, unabhängig von
+   user-scalable=no. Die Leinwand hat ihre eigene Zoomgeste, die Seite
+   selbst soll fest stehen bleiben. */
+["gesturestart","gesturechange","gestureend"].forEach(n =>
+  document.addEventListener(n, ev => ev.preventDefault(), { passive:false }));
 
 function arbeitAn(text){ $("arbeitText").textContent = text; $("arbeit").classList.add("an"); }
 function arbeitAus(){ $("arbeit").classList.remove("an"); }
@@ -3042,13 +3076,14 @@ async function mobilAnschliessen(ab){
   });
   if (!a.wahl) return "abbruch";
 
+  const bestueckung = bestueckungAusTyp(BESTAND.find(t => t.id === a.werte.typ));
   const neu = {
     id: neueKennung("uv"), art:"mobil", typ:a.werte.typ,
     name: a.werte.name.trim() || "MV",
     x: null, y: null,
     quelle: { uvId: UV.id, abgangId: ab.id },
-    rcds: [],
-    abgaenge: abgaengeAusTyp(BESTAND.find(t => t.id === a.werte.typ)),
+    rcds: bestueckung.rcds,
+    abgaenge: bestueckung.abgaenge,
   };
   PLAN.verteiler.push(neu);
   ab.mobil = neu.id;
@@ -3265,8 +3300,10 @@ function bestandZeichnen(){
 function ausstattungText(t){
   if (!t.anschluss) return null;
   const stueck = (t.gruppen || []).reduce((n, g) => n + g.anzahl, 0) + (t.durchgeschleift ? 1 : 0);
+  const rcds = (t.rcds || []).length;
   return "Anschluss " + t.anschluss + " · " +
-         (stueck === 1 ? "1 Abgang" : stueck + " Abgänge");
+         (stueck === 1 ? "1 Abgang" : stueck + " Abgänge") +
+         (rcds ? " · " + (rcds === 1 ? "1 RCD-Gruppe" : rcds + " RCD-Gruppen") : "");
 }
 const anschlussOptionen = () =>
   [{ wert:"", text:"ohne Angabe" }].concat(ABGANGSARTEN.map(x => ({ wert:x, text:x })));
@@ -3297,15 +3334,29 @@ async function typHinzufuegen(){
 }
 
 /* Liste der Abgänge eines Typs. Jede Gruppe ist ein Knopf. */
+const typRcdName = (t, id) => {
+  const r = (t.rcds || []).find(x => x.id === id);
+  return r ? r.name : null;
+};
+const typRcdOptionen = (t) =>
+  [{ wert:"", text:"kein RCD" }].concat((t.rcds || []).map(r => ({ wert:r.id, text:r.name })));
+
 async function typAbgaenge(t){
   if (!t.gruppen) t.gruppen = [];
+  if (!t.rcds) t.rcds = [];
   while (true){
     const knoepfe = [{ text:"Fertig", wert:"fertig" }];
+    t.rcds.forEach((r, i) => knoepfe.push({
+      text: r.name + " · " + kettenText(r),
+      wert: "r" + i, art:"leer",
+    }));
     t.gruppen.forEach((g, i) => knoepfe.push({
-      text: g.anzahl + " × " + g.art + " · " + sicherungText(g.sicherung),
+      text: g.anzahl + " × " + g.art + " · " + sicherungText(g.sicherung) +
+            (typRcdName(t, g.rcd) ? " · hinter " + typRcdName(t, g.rcd) : ""),
       wert: "g" + i, art:"leer",
     }));
     knoepfe.push({ text:"Abgang hinzufügen", wert:"neu", art:"leer" });
+    knoepfe.push({ text:"RCD-Gruppe hinzufügen", wert:"rcdneu", art:"leer" });
     if (t.anschluss === "CEE 63A")
       knoepfe.push({ text: (t.durchgeschleift ? "✓ " : "") + "Durchgeschleifter Abgang CEE 63 A",
                      wert:"durch", art:"leer" });
@@ -3316,13 +3367,56 @@ async function typAbgaenge(t){
       knoepfe,
     });
     if (!a.wahl || a.wahl === "fertig") break;
-    if (a.wahl === "durch") t.durchgeschleift = !t.durchgeschleift;
-    else if (a.wahl === "neu") await typGruppe(t, null);
-    else await typGruppe(t, t.gruppen[Number(a.wahl.slice(1))]);
+    if (a.wahl === "durch")        t.durchgeschleift = !t.durchgeschleift;
+    else if (a.wahl === "neu")     await typGruppe(t, null);
+    else if (a.wahl === "rcdneu")  await typRcd(t, null);
+    else if (a.wahl[0] === "r")    await typRcd(t, t.rcds[Number(a.wahl.slice(1))]);
+    else                           await typGruppe(t, t.gruppen[Number(a.wahl.slice(1))]);
     await bestandSpeichern(BESTAND);
   }
   await bestandSpeichern(BESTAND);
   bestandZeichnen();
+}
+
+/* Eine RCD-Gruppe am Typ. Sie kann wie im Plan ein vorgeschaltetes
+   Gerät führen, also die gemeinsame Vorsicherung vor dem FI. */
+async function typRcd(t, r){
+  if (!r){
+    const s = await sicherungWaehlen({ art:"FI", kennlinie:null, strom:40, ma:30 }, "RCD der Gruppe");
+    if (!s) return;
+    const nummern = t.rcds.map(x => { const m = /^RCD\s*(\d+)$/i.exec(x.name); return m ? Number(m[1]) : 0; });
+    t.rcds.push({ id: neueKennung("rcd"), name: "RCD " + (Math.max(0, ...nummern) + 1),
+                  sicherung: s, vor: null });
+    return;
+  }
+  const dahinter = t.gruppen.filter(g => g.rcd === r.id);
+  const stueck = dahinter.reduce((n, g) => n + g.anzahl, 0);
+  const a = await formular({
+    titel: r.name,
+    text: kettenText(r) + " · " + (stueck === 1 ? "1 Abgang" : stueck + " Abgänge") + " dahinter",
+    felder: [{ art:"text", name:"name", beschriftung:"Bezeichnung", wert:r.name }],
+    knoepfe: [{ text:"Übernehmen", wert:"ok" },
+              { text:"RCD ändern", wert:"sicherung", art:"leer" },
+              { text:"Vorsicherung ändern", wert:"vor", art:"leer" },
+              { text:"Gruppe entfernen", wert:"weg", art:"gefahr" },
+              { text:"Abbrechen", wert:null, art:"leer" }],
+  });
+  if (!a.wahl) return;
+  if (a.wahl === "weg"){
+    for (const g of dahinter) g.rcd = null;
+    t.rcds = t.rcds.filter(x => x !== r);
+    return;
+  }
+  if (a.werte.name.trim()) r.name = a.werte.name.trim();
+  if (a.wahl === "sicherung"){
+    const s = await sicherungWaehlen(r.sicherung, "RCD der Gruppe");
+    if (s) r.sicherung = s;
+  }
+  if (a.wahl === "vor"){
+    const s = await sicherungWaehlen(r.vor || { art:"gG", kennlinie:null, strom:63, ma:null },
+                                     "Vorsicherung vor dem RCD");
+    if (s) r.vor = hatGeraet(s) ? s : null;
+  }
 }
 
 /* Eine Gruppe gleichartiger Abgänge am Typ */
@@ -3336,6 +3430,8 @@ async function typGruppe(t, g){
         wert: g ? g.art : erlaubt[erlaubt.length - 1],
         optionen: erlaubt.map(x => ({ wert:x, text:x })) },
       { art:"zahl", name:"anzahl", beschriftung:"Anzahl", wert: g ? String(g.anzahl) : "1" },
+      { art:"wahl", name:"rcd", beschriftung:"Hinter RCD",
+        wert: (g && g.rcd) || "", optionen: typRcdOptionen(t) },
     ],
     knoepfe: [{ text: g ? "Übernehmen" : "Weiter zur Absicherung", wert:"ok" }]
       .concat(g ? [{ text:"Absicherung ändern", wert:"sicherung", art:"leer" },
@@ -3350,28 +3446,39 @@ async function typGruppe(t, g){
   if (!g){
     const s = await sicherungWaehlen(sicherungVorgabe(art), "Absicherung der Abgänge");
     if (!s) return;
-    t.gruppen.push({ art, anzahl, sicherung: s });
+    t.gruppen.push({ art, anzahl, sicherung: s, rcd: a.werte.rcd || null });
     return;
   }
-  g.art = art; g.anzahl = anzahl;
+  g.art = art; g.anzahl = anzahl; g.rcd = a.werte.rcd || null;
   if (a.wahl === "sicherung"){
     const s = await sicherungWaehlen(g.sicherung, "Absicherung der Abgänge");
     if (s) g.sicherung = s;
   }
 }
 
-/* Aus der Ausstattung eines Typs die Abgänge eines neuen Verteilers */
-function abgaengeAusTyp(t){
-  const aus = [];
-  if (!t) return aus;
+/* Aus der Ausstattung eines Typs die RCD-Gruppen und Abgänge eines neuen
+   Verteilers. Jedes Stück bekommt eigene Kennungen, die Zuordnung der
+   Abgänge zu ihrer Gruppe wird dabei umgeschrieben. */
+function bestueckungAusTyp(t){
+  const rcds = [], abgaenge = [], neueId = {};
+  if (!t) return { rcds, abgaenge };
+
+  for (const r of (t.rcds || [])){
+    const id = neueKennung("rcd");
+    neueId[r.id] = id;
+    rcds.push({ id, name: r.name,
+                sicherung: JSON.parse(JSON.stringify(r.sicherung)),
+                vor: r.vor ? JSON.parse(JSON.stringify(r.vor)) : null });
+  }
   if (t.durchgeschleift && t.anschluss === "CEE 63A")
-    aus.push({ id: neueKennung("ab"), art:"CEE 63A", name:"durchgeschleift",
-               sicherung:{ art:"ohne", kennlinie:null, strom:null, ma:null }, rcd:null });
+    abgaenge.push({ id: neueKennung("ab"), art:"CEE 63A", name:"durchgeschleift",
+                    sicherung:{ art:"ohne", kennlinie:null, strom:null, ma:null }, rcd:null });
   for (const g of (t.gruppen || []))
     for (let i = 0; i < g.anzahl; i++)
-      aus.push({ id: neueKennung("ab"), art:g.art, name:"",
-                 sicherung: JSON.parse(JSON.stringify(g.sicherung)), rcd:null });
-  return aus;
+      abgaenge.push({ id: neueKennung("ab"), art:g.art, name:"",
+                      sicherung: JSON.parse(JSON.stringify(g.sicherung)),
+                      rcd: (g.rcd && neueId[g.rcd]) || null });
+  return { rcds, abgaenge };
 }
 
 async function typBearbeiten(t){
