@@ -2,7 +2,7 @@
 <html lang="de">
 <!--
   SF E-Plan
-  v1.35 · 03.09.2026
+  v1.36 · 03.09.2026
 
   Änderungsliste
   v1.0  Stufe 1: DWG einlesen, Plan dauerhaft ablegen, mehrere Pläne
@@ -186,6 +186,17 @@
         in der Datei, sonst wird sie um ein Vielfaches größer. Die Datei
         trägt die Kennung sf-eplan-stand-v1 und heißt
         "JJ-MM-TT Name.sfeplan.json".
+  v1.36 Ausstattung am Bestandstyp: Anschluss (Schuko bis CEE 125 A) und
+        die Abgänge, die der Verteiler mitbringt – je Gruppe Art, Anzahl
+        und Absicherung. Zur Wahl stehen nur Größen bis zum Anschluss,
+        die Rangfolge ist Schuko, CEE 16, 32, 63, 125. Beim Anschluss
+        CEE 63 A kommt das Kästchen für den durchgeschleiften Abgang
+        dazu: er wird als CEE 63 A ohne Absicherung angelegt und läuft
+        im Schaltbild ohne Schutzorgan durch. Wird der Anschluss
+        nachträglich kleiner, fragt die App, bevor die zu großen
+        Abgänge entfallen. Beim Anschließen im Plan legt die App die
+        Abgänge aus der Ausstattung gleich mit an. Typen aus früheren
+        Fassungen bleiben unverändert und ohne Angaben.
 -->
 <head>
 <meta charset="utf-8">
@@ -562,7 +573,7 @@
 <script type="module">
 "use strict";
 
-const FASSUNG = "v1.35 · 03.09.2026";
+const FASSUNG = "v1.36 · 03.09.2026";
 
 /* ================================================================== */
 /* 1 · Kleinkram                                                       */
@@ -671,6 +682,17 @@ const SICHERUNG = {
   "ohne":  { kennlinien:null,      stroeme:null,                         ma:null },
 };
 const ABGANGSARTEN = ["Schuko","CEE 16A","CEE 32A","CEE 63A","CEE 125A"];
+/* Rangfolge der Steckergrößen. Ein Abgang ist nie größer als der
+   Anschluss, an dem er hängt. */
+const STECKERGROESSE = { "Schuko":1, "CEE 16A":2, "CEE 32A":3, "CEE 63A":4, "CEE 125A":5 };
+const bisGroesse = (anschluss) =>
+  ABGANGSARTEN.filter(x => STECKERGROESSE[x] <= (STECKERGROESSE[anschluss] || 99));
+
+function sicherungVorgabe(art){
+  return /CEE 32|CEE 63|CEE 125/.test(art)
+    ? { art:"LS", kennlinie:"C", strom: art === "CEE 32A" ? 32 : 63, ma:null }
+    : { art:"LS", kennlinie:"B", strom:16, ma:null };
+}
 
 function sicherungText(s){
   if (!s || !s.art || s.art === "ohne") return "ohne Absicherung";
@@ -3012,7 +3034,8 @@ async function mobilAnschliessen(ab){
     name: a.werte.name.trim() || "MV",
     x: null, y: null,
     quelle: { uvId: UV.id, abgangId: ab.id },
-    rcds: [], abgaenge: [],
+    rcds: [],
+    abgaenge: abgaengeAusTyp(BESTAND.find(t => t.id === a.werte.typ)),
   };
   PLAN.verteiler.push(neu);
   ab.mobil = neu.id;
@@ -3068,10 +3091,7 @@ async function abgaengeHinzufuegen(){
   if (!a.wahl) return;
 
   const anzahl = Math.max(1, Math.min(99, parseInt(a.werte.anzahl, 10) || 1));
-  const vorgabe = /CEE 32|CEE 63|CEE 125/.test(a.werte.art)
-    ? { art:"LS", kennlinie:"C", strom: a.werte.art === "CEE 32A" ? 32 : 63, ma:null }
-    : { art:"LS", kennlinie:"B", strom:16, ma:null };
-  const s = await sicherungWaehlen(vorgabe, "Absicherung der Abgänge");
+  const s = await sicherungWaehlen(sicherungVorgabe(a.werte.art), "Absicherung der Abgänge");
   if (!s) return;
 
   for (let i=0;i<anzahl;i++){
@@ -3206,8 +3226,9 @@ function bestandZeichnen(){
     ziel.appendChild(zeile({
       nr: t.anzahl,
       oben: t.name,
-      unten: PLAN ? (benutzt + " von " + t.anzahl + " in diesem Plan im Einsatz")
-                  : (t.anzahl === 1 ? "1 Stück" : t.anzahl + " Stück"),
+      unten: [PLAN ? (benutzt + " von " + t.anzahl + " in diesem Plan im Einsatz")
+                   : (t.anzahl === 1 ? "1 Stück" : t.anzahl + " Stück"),
+              ausstattungText(t)].filter(Boolean).join(" · "),
       beiKlick: () => typBearbeiten(t),
     }));
   }
@@ -3225,23 +3246,119 @@ function bestandZeichnen(){
   ziel.appendChild(hinweisText);
 }
 
+/* Ausstattung eines Typs: der Anschluss, mit dem er gespeist wird, und
+   die Abgänge, die er mitbringt. Steht das am Typ, legt die App die
+   Abgänge beim Anschließen im Plan gleich mit an. */
+function ausstattungText(t){
+  if (!t.anschluss) return null;
+  const stueck = (t.gruppen || []).reduce((n, g) => n + g.anzahl, 0) + (t.durchgeschleift ? 1 : 0);
+  return "Anschluss " + t.anschluss + " · " +
+         (stueck === 1 ? "1 Abgang" : stueck + " Abgänge");
+}
+const anschlussOptionen = () =>
+  [{ wert:"", text:"ohne Angabe" }].concat(ABGANGSARTEN.map(x => ({ wert:x, text:x })));
+
 async function typHinzufuegen(){
   const a = await formular({
     titel: "Typ hinzufügen",
     felder: [
       { art:"text", name:"name", beschriftung:"Bezeichnung", platzhalter:"z. B. Baustromverteiler 63A" },
       { art:"zahl", name:"anzahl", beschriftung:"Vorhandene Stückzahl", wert:"1" },
+      { art:"wahl", name:"anschluss", beschriftung:"Anschluss", optionen: anschlussOptionen() },
     ],
     knoepfe: [{ text:"Anlegen", wert:true }, { text:"Abbrechen", wert:false, art:"leer" }],
   });
   if (!a.wahl || !a.werte.name.trim()) return;
-  BESTAND.push({
+  const t = {
     id: neueKennung("typ"),
     name: a.werte.name.trim(),
     anzahl: Math.max(1, Math.min(999, parseInt(a.werte.anzahl, 10) || 1)),
-  });
+    anschluss: a.werte.anschluss || null,
+    durchgeschleift: false,
+    gruppen: [],
+  };
+  BESTAND.push(t);
   await bestandSpeichern(BESTAND);
   bestandZeichnen();
+  if (t.anschluss) await typAbgaenge(t);
+}
+
+/* Liste der Abgänge eines Typs. Jede Gruppe ist ein Knopf. */
+async function typAbgaenge(t){
+  if (!t.gruppen) t.gruppen = [];
+  while (true){
+    const knoepfe = [{ text:"Fertig", wert:"fertig" }];
+    t.gruppen.forEach((g, i) => knoepfe.push({
+      text: g.anzahl + " × " + g.art + " · " + sicherungText(g.sicherung),
+      wert: "g" + i, art:"leer",
+    }));
+    knoepfe.push({ text:"Abgang hinzufügen", wert:"neu", art:"leer" });
+    if (t.anschluss === "CEE 63A")
+      knoepfe.push({ text: (t.durchgeschleift ? "✓ " : "") + "Durchgeschleifter Abgang CEE 63 A",
+                     wert:"durch", art:"leer" });
+    const a = await frage({
+      titel: t.name,
+      text: "Anschluss " + (t.anschluss || "ohne Angabe") +
+            ". Größere Abgänge als der Anschluss stehen nicht zur Wahl.",
+      knoepfe,
+    });
+    if (!a.wahl || a.wahl === "fertig") break;
+    if (a.wahl === "durch") t.durchgeschleift = !t.durchgeschleift;
+    else if (a.wahl === "neu") await typGruppe(t, null);
+    else await typGruppe(t, t.gruppen[Number(a.wahl.slice(1))]);
+    await bestandSpeichern(BESTAND);
+  }
+  await bestandSpeichern(BESTAND);
+  bestandZeichnen();
+}
+
+/* Eine Gruppe gleichartiger Abgänge am Typ */
+async function typGruppe(t, g){
+  const erlaubt = bisGroesse(t.anschluss);
+  const a = await formular({
+    titel: g ? "Abgänge ändern" : "Abgänge hinzufügen",
+    text: g ? sicherungText(g.sicherung) : undefined,
+    felder: [
+      { art:"wahl", name:"art", beschriftung:"Art",
+        wert: g ? g.art : erlaubt[erlaubt.length - 1],
+        optionen: erlaubt.map(x => ({ wert:x, text:x })) },
+      { art:"zahl", name:"anzahl", beschriftung:"Anzahl", wert: g ? String(g.anzahl) : "1" },
+    ],
+    knoepfe: [{ text: g ? "Übernehmen" : "Weiter zur Absicherung", wert:"ok" }]
+      .concat(g ? [{ text:"Absicherung ändern", wert:"sicherung", art:"leer" },
+                   { text:"Entfernen", wert:"weg", art:"gefahr" }] : [])
+      .concat([{ text:"Abbrechen", wert:null, art:"leer" }]),
+  });
+  if (!a.wahl) return;
+  if (a.wahl === "weg"){ t.gruppen = t.gruppen.filter(x => x !== g); return; }
+
+  const art = a.werte.art;
+  const anzahl = Math.max(1, Math.min(99, parseInt(a.werte.anzahl, 10) || 1));
+  if (!g){
+    const s = await sicherungWaehlen(sicherungVorgabe(art), "Absicherung der Abgänge");
+    if (!s) return;
+    t.gruppen.push({ art, anzahl, sicherung: s });
+    return;
+  }
+  g.art = art; g.anzahl = anzahl;
+  if (a.wahl === "sicherung"){
+    const s = await sicherungWaehlen(g.sicherung, "Absicherung der Abgänge");
+    if (s) g.sicherung = s;
+  }
+}
+
+/* Aus der Ausstattung eines Typs die Abgänge eines neuen Verteilers */
+function abgaengeAusTyp(t){
+  const aus = [];
+  if (!t) return aus;
+  if (t.durchgeschleift && t.anschluss === "CEE 63A")
+    aus.push({ id: neueKennung("ab"), art:"CEE 63A", name:"durchgeschleift",
+               sicherung:{ art:"ohne", kennlinie:null, strom:null, ma:null }, rcd:null });
+  for (const g of (t.gruppen || []))
+    for (let i = 0; i < g.anzahl; i++)
+      aus.push({ id: neueKennung("ab"), art:g.art, name:"",
+                 sicherung: JSON.parse(JSON.stringify(g.sicherung)), rcd:null });
+  return aus;
 }
 
 async function typBearbeiten(t){
@@ -3252,8 +3369,11 @@ async function typBearbeiten(t){
     felder: [
       { art:"text", name:"name", beschriftung:"Bezeichnung", wert:t.name },
       { art:"zahl", name:"anzahl", beschriftung:"Vorhandene Stückzahl", wert:String(t.anzahl) },
+      { art:"wahl", name:"anschluss", beschriftung:"Anschluss", wert: t.anschluss || "",
+        optionen: anschlussOptionen() },
     ],
     knoepfe: [{ text:"Übernehmen", wert:"ok" },
+              { text:"Abgänge festlegen", wert:"abgaenge", art:"leer" },
               { text:"Typ löschen", wert:"weg", art:"gefahr" },
               { text:"Abbrechen", wert:null, art:"leer" }],
   });
@@ -3279,6 +3399,38 @@ async function typBearbeiten(t){
         " dieses Typs. Die Stückzahl kann nicht darunter liegen.");
     }
     t.anzahl = neu;
+
+    /* Wird der Anschluss kleiner, passen größere Abgänge nicht mehr. */
+    const anschluss = a.werte.anschluss || null;
+    if (anschluss !== t.anschluss){
+      const zuGross = (t.gruppen || []).filter(g => STECKERGROESSE[g.art] > (STECKERGROESSE[anschluss] || 99));
+      const durchWeg = t.durchgeschleift && anschluss !== "CEE 63A";
+      if (zuGross.length || durchWeg){
+        const b = await frage({
+          titel: "Abgänge passen nicht mehr",
+          text: "Mit dem Anschluss " + (anschluss || "ohne Angabe") + " " +
+                (zuGross.length
+                  ? "entfallen " + zuGross.map(g => g.anzahl + " × " + g.art).join(", ")
+                  : "entfällt der durchgeschleifte Abgang") +
+                (zuGross.length && durchWeg ? " und der durchgeschleifte Abgang" : "") + ".",
+          knoepfe: [{ text:"Anschluss ändern", wert:true, art:"gefahr" },
+                    { text:"Abbrechen", wert:false, art:"leer" }],
+        });
+        if (!b.wahl) return;
+        t.gruppen = (t.gruppen || []).filter(g => STECKERGROESSE[g.art] <= (STECKERGROESSE[anschluss] || 99));
+        if (durchWeg) t.durchgeschleift = false;
+      }
+      t.anschluss = anschluss;
+    }
+    if (a.wahl === "abgaenge"){
+      if (!t.anschluss){
+        await bestandSpeichern(BESTAND);
+        return hinweis("Anschluss fehlt",
+          "Leg zuerst den Anschluss fest, dann steht fest, welche Abgänge möglich sind.");
+      }
+      await bestandSpeichern(BESTAND);
+      return typAbgaenge(t);
+    }
   }
   await bestandSpeichern(BESTAND);
   bestandZeichnen();
