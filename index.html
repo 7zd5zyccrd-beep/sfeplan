@@ -325,6 +325,15 @@
         nichts zusammen. Es gilt für alle Bildschirme und ebenso für
         Schleier, Suche, Menü und Arbeitsanzeige, sonst blieben die
         hinter dem Rand zurück. Die Leinwand misst danach neu nach.
+  v1.52 PROBE, keine Fassung zum Behalten. Der weiße Rand bleibt, obwohl
+        Rahmen, Sichtfenster und Schirmhöhe alle 844 melden – die Seite
+        hält sich also für vollständig. Um zu sehen, welche Schicht dort
+        unten tatsächlich liegt, sind Wurzel und Rumpf eingefärbt: rosa
+        die Wurzel, gelb der Rumpf, die Bildschirme bleiben weiß. Bleibt
+        der Rand weiß, gehört die Fläche nicht mehr der Seite. Dazu
+        nennt die Zustandsanzeige jetzt Gerätemaß, freies Maß, Wurzel-
+        und Fensterhöhe – daran ist abzulesen, wie viel Platz das Gerät
+        über das hinaus hat, was die Seite bekommt.
 -->
 <head>
 <meta charset="utf-8">
@@ -371,6 +380,14 @@
      danach liegen alle Tippflächen neben dem, was zu sehen ist. */
   html,body{margin:0;padding:0;height:100%;
             overflow:hidden;overscroll-behavior:none}
+  /* PROBE v1.52 – kommt wieder raus. Drei Schichten, drei Farben, damit
+     der weiße Rand unten sich selbst verrät:
+       rosa  = außerhalb des Rumpfes, aber die Seite kennt die Fläche
+       gelb  = im Rumpf, nur von keinem Bildschirm bedeckt
+       weiß  = die Seite kennt die Fläche gar nicht, sie gehört dem Gerät */
+  html{background:#FF00AA}
+  body{background:#FFD400}
+  .schirm{background:var(--grund)}
   body{
     font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     color:var(--ink);background:var(--grund);
@@ -815,7 +832,7 @@
 <script type="module">
 "use strict";
 
-const FASSUNG = "v1.51 · 03.09.2026";
+const FASSUNG = "v1.52 Probe · 03.09.2026";
 
 /* Ein Fehler in einem Klickhandler bleibt sonst unbemerkt: der Knopf tut
    einfach nichts. Beides – geworfene Fehler und gescheiterte Versprechen –
@@ -5354,6 +5371,10 @@ function zustandZeilen(){
     "Modus " + modus + " · mark " + (markiert ? markiert.art : "–") +
       " · herv " + (hervorhebung ? hervorhebung.art : "–") +
       " · Bänder " + zustandZaehler.laufband,
+    "Gerät " + screen.width + "×" + screen.height +
+      " frei " + screen.availWidth + "×" + screen.availHeight +
+      " · Wurzel " + document.documentElement.clientHeight +
+      " · Fenster " + window.innerHeight,
     "Bilder Plan " + planJeSek + "/s Fläche " + flaecheJeSek + "/s" +
       " · Auftrag " + (zeichenAuftrag ? 1 : 0) + " · Tippuhr " + (tippUhr ? 1 : 0),
   ];
