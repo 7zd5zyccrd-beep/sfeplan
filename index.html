@@ -2,7 +2,7 @@
 <html lang="de">
 <!--
   SF E-Plan
-  v1.43 · 03.09.2026
+  v1.44 · 03.09.2026
 
   Änderungsliste
   v1.0  Stufe 1: DWG einlesen, Plan dauerhaft ablegen, mehrere Pläne
@@ -231,6 +231,21 @@
         Kasten im Schleier, der mindestens dessen Höhe hat und mit dem
         Inhalt mitwächst – mittig, solange es passt, und trotzdem
         vollständig scrollbar, wenn es höher wird.
+  v1.44 Verteiler und Ausstattung neu gegliedert. Die Ausstattung eines
+        Bestandstyps ist jetzt ein eigener Bildschirm mit Kopfzeile und
+        Zurück-Pfeil statt einer Karte mit dreizehn gleichen Knöpfen;
+        einen Fertig-Knopf gibt es nicht mehr, gespeichert wird ohnehin
+        sofort. In beiden Ansichten stehen die Abgänge jetzt dort, wo
+        sie hingehören: erst die direkt am Anschluss, dann je RCD-Gruppe
+        deren Zeile und darunter eingerückt, mit Linie links wie die
+        Untersammelschiene im Schaltbild, die Abgänge dahinter. Der
+        Zusatz "hinter RCD 1" am Zeilenende entfällt damit. Angelegt
+        wird über einen leisen Knopf am Ende des jeweiligen Abschnitts,
+        die Zugehörigkeit ist dadurch schon vorgewählt. Der
+        durchgeschleifte Abgang ist ein Kästchen zum Ankreuzen. Zuletzt:
+        Ober- und Unterzeile einer Listenzeile liefen ineinander, weil
+        beide inline standen – jetzt display:block, damit greift auch
+        die Kürzung mit Auslassungspunkten.
 -->
 <head>
 <meta charset="utf-8">
@@ -472,8 +487,11 @@
     display:flex;align-items:center;justify-content:center;
   }
   .zeile .haupt{flex:1;min-width:0}
-  .zeile .oben{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .zeile .unten{font-size:13px;color:var(--ink-leise);margin-top:2px}
+  /* display:block, sonst laufen beide Zeilen ineinander und die
+     Kürzung mit Auslassungspunkten greift nicht. */
+  .zeile .oben{display:block;font-weight:600;
+               white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .zeile .unten{display:block;font-size:13px;color:var(--ink-leise);margin-top:2px}
   .zeile .pfeil{color:var(--ink-leise);font-size:18px;flex:0 0 auto}
   .zeile .sortier{display:flex;gap:8px;flex:0 0 auto}
   .pfeilknopf{
@@ -484,6 +502,33 @@
   .pfeilknopf:active{background:var(--flaeche)}
   .pfeilknopf:disabled{opacity:.25}
   .platzhalter{color:var(--ink-leise);font-size:14px;padding:6px 2px 12px}
+  /* Gliederung langer Listen: Zwischenüberschrift, eingerückte Gruppe
+     mit Linie links (das Gegenstück zur Untersammelschiene im
+     Schaltbild) und ein leiser Knopf zum Anlegen, der zu dem Abschnitt
+     darüber gehört. */
+  .unterschrift{font-size:13px;color:var(--ink-leise);margin:16px 0 6px}
+  .gruppe{border-left:2px solid var(--linie);padding-left:10px;margin-left:8px}
+  .zuknopf{
+    display:flex;align-items:center;justify-content:center;width:100%;
+    border:1px dashed var(--linie);border-radius:var(--radius);
+    padding:10px 14px;margin-bottom:8px;color:var(--ink-leise);font-size:14px;
+  }
+  .zuknopf:active{background:var(--flaeche)}
+  .hakenzeile{
+    display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+    border:1px solid var(--linie);border-radius:var(--radius);
+    padding:12px 14px;margin-bottom:8px;background:var(--grund);
+  }
+  .hakenzeile:active{background:var(--flaeche)}
+  .hakenzeile .haken{
+    width:24px;height:24px;flex:0 0 auto;border:2px solid var(--linie);border-radius:7px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:14px;font-weight:700;color:transparent;
+  }
+  .hakenzeile.an .haken{background:var(--akzent);border-color:var(--akzent);color:#fff}
+  .hakenzeile .haupt{flex:1;min-width:0}
+  .hakenzeile .oben{display:block;font-weight:600}
+  .hakenzeile .unten{display:block;font-size:13px;color:var(--ink-leise);margin-top:2px}
   /* Meldet Fehler, die sonst still einen Knopf lahmlegen würden.
      Antippen blendet das Band wieder aus. */
   #fehlerband{
@@ -581,6 +626,16 @@
   <div class="rumpf"><div class="innen" id="bInhalt"></div></div>
 </div>
 
+<!-- =============== Ausstattung eines Bestandstyps =============== -->
+<div class="schirm" id="schirmTyp">
+  <div class="kopf">
+    <button id="typZurueck" aria-label="Zurück">&#8592;</button>
+    <span class="titel" id="typTitel">Ausstattung</span>
+    <span class="platz"></span>
+  </div>
+  <div class="rumpf"><div class="innen" id="typInhalt"></div></div>
+</div>
+
 <!-- ======================= Ein Verteiler ======================= -->
 <div class="schirm" id="schirmUV">
   <div class="kopf">
@@ -632,7 +687,7 @@
 <script type="module">
 "use strict";
 
-const FASSUNG = "v1.43 · 03.09.2026";
+const FASSUNG = "v1.44 · 03.09.2026";
 
 /* Ein Fehler in einem Klickhandler bleibt sonst unbemerkt: der Knopf tut
    einfach nichts. Beides – geworfene Fehler und gescheiterte Versprechen –
@@ -2847,14 +2902,6 @@ function uvZeichnen(){
   ziel.innerHTML = "";
 
   const ueberschrift = (t) => { const h = document.createElement("h2"); h.textContent = t; ziel.appendChild(h); };
-  const knopf = (t, beiKlick, art) => {
-    const b = document.createElement("button");
-    b.className = "knopf" + (art ? " " + art : "");
-    b.textContent = t;
-    b.addEventListener("click", beiKlick);
-    ziel.appendChild(b);
-    return b;
-  };
 
   /* --- Zuleitung --- */
   ueberschrift("Zuleitung");
@@ -2867,10 +2914,7 @@ function uvZeichnen(){
       unten: qab ? [qab.art, sicherungText(qab.sicherung)].join(" · ") : "",
       beiKlick: () => { if (q) uvOeffnen(q); },
     }));
-    const p = document.createElement("div");
-    p.className = "platzhalter";
-    p.textContent = "Die Zuleitung ergibt sich aus dem speisenden Abgang und wird dort geändert.";
-    ziel.appendChild(p);
+    platzhalterIn(ziel, "Die Zuleitung ergibt sich aus dem speisenden Abgang und wird dort geändert.");
   } else {
     ziel.appendChild(zeile({
       oben: UV.zuleitung.herkunft || "Herkunft nicht angegeben",
@@ -2879,55 +2923,27 @@ function uvZeichnen(){
     }));
   }
 
-  /* --- RCD-Gruppen --- */
-  ueberschrift("RCD-Gruppen");
-  if (!UV.rcds.length){
-    const p = document.createElement("div");
-    p.className = "platzhalter";
-    p.textContent = "Keine Gruppe angelegt. Eine Gruppe fasst Abgänge zusammen, die gemeinsam hinter einem RCD liegen.";
-    ziel.appendChild(p);
-  }
-  UV.rcds.forEach(r => {
-    const dahinter = UV.abgaenge.filter(a => a.rcd === r.id).length;
-    ziel.appendChild(zeile({
-      oben: r.name,
-      unten: kettenText(r) + " · " +
-             (dahinter === 1 ? "1 Abgang" : dahinter + " Abgänge"),
-      beiKlick: () => rcdBearbeiten(r),
-    }));
-  });
-  knopf("RCD-Gruppe hinzufügen", rcdHinzufuegen, "leer");
-
-  /* --- Abgänge --- */
+  /* --- Abgänge, nach ihrer Gruppe geordnet --- */
   const frei = UV.abgaenge.filter(a => !a.verbraucher && !a.mobil).length;
   ueberschrift(UV.abgaenge.length
     ? UV.abgaenge.length + " Abgänge, " + frei + " frei"
     : "Abgänge");
-  if (!UV.abgaenge.length){
-    const p = document.createElement("div");
-    p.className = "platzhalter";
-    p.textContent = "Noch keine Abgänge angelegt.";
-    ziel.appendChild(p);
-  }
+
   if (UV.abgaenge.length > 1){
-    const rk = knopf(sortModus ? "Reihenfolge fertig" : "Reihenfolge ändern",
-                     () => { sortModus = !sortModus; uvZeichnen(); },
-                     sortModus ? "" : "leer");
+    const rk = knopfIn(ziel, sortModus ? "Reihenfolge fertig" : "Reihenfolge ändern",
+                       () => { sortModus = !sortModus; uvZeichnen(); },
+                       sortModus ? "" : "leer");
     rk.style.marginBottom = "10px";
   }
-  if (sortModus){
-    const p = document.createElement("div");
-    p.className = "platzhalter";
-    p.textContent = "Abgänge hinter einem RCD bleiben in ihrer Gruppe.";
-    ziel.appendChild(p);
-  }
-  UV.abgaenge.forEach((a, i) => {
-    const r = UV.rcds.find(x => x.id === a.rcd);
-    ziel.appendChild(zeile({
-      nr: i+1,
+
+  /* Eine Abgangszeile behält ihre Nummer aus der Gesamtliste: daran
+     hängen Schaltbild und Beschriftung. */
+  const abgangZeile = (wohin, a) => {
+    const i = UV.abgaenge.indexOf(a);
+    wohin.appendChild(zeile({
+      nr: i + 1,
       oben: (a.name || a.art) + " — " + verbraucherText(a),
-      unten: [a.art, kettenText(a), r ? "hinter " + r.name : null]
-             .filter(Boolean).join(" · "),
+      unten: [a.art, kettenText(a)].filter(Boolean).join(" · "),
       beiKlick: () => abgangBearbeiten(a),
       sortier: sortModus ? {
         auf: nachbarInGruppe(i, -1) >= 0,
@@ -2936,13 +2952,30 @@ function uvZeichnen(){
         beiAb:  () => abgangVerschieben(a, +1),
       } : null,
     }));
-  });
-  if (!sortModus){
-    const b = knopf("Abgänge hinzufügen", abgaengeHinzufuegen);
-    b.style.marginTop = "4px";
+  };
 
-    const sb = knopf("Prinzipschaltbild", () => schaltbildZeigen(UV), "leer");
-    sb.style.marginTop = "10px";
+  const direkt = UV.abgaenge.filter(a => !a.rcd || !UV.rcds.some(r => r.id === a.rcd));
+  if (UV.rcds.length) unterschrift(ziel, "Direkt am Verteiler");
+  if (!direkt.length && !UV.rcds.length) platzhalterIn(ziel, "Noch keine Abgänge angelegt.");
+  direkt.forEach(a => abgangZeile(ziel, a));
+  if (!sortModus) zuKnopf(ziel, "Abgänge", () => abgaengeHinzufuegen(null));
+
+  for (const r of UV.rcds){
+    const dahinter = UV.abgaenge.filter(a => a.rcd === r.id);
+    ziel.appendChild(zeile({
+      oben: r.name,
+      unten: kettenText(r),
+      beiKlick: () => rcdBearbeiten(r),
+    }));
+    const kasten = gruppenKasten(ziel);
+    if (!dahinter.length) platzhalterIn(kasten, "Noch nichts hinter dieser Gruppe.");
+    dahinter.forEach(a => abgangZeile(kasten, a));
+    if (!sortModus) zuKnopf(kasten, "Abgänge", () => abgaengeHinzufuegen(r.id));
+  }
+
+  if (!sortModus){
+    knopfIn(ziel, "RCD-Gruppe hinzufügen", rcdHinzufuegen, "leer").style.marginTop = "10px";
+    knopfIn(ziel, "Prinzipschaltbild", () => schaltbildZeigen(UV), "leer").style.marginTop = "10px";
   }
 }
 
@@ -3165,14 +3198,15 @@ function mobilEntfernen(uvId){
 const rcdOptionen = () =>
   [{ wert:"", text:"kein RCD" }].concat(UV.rcds.map(r => ({ wert:r.id, text:r.name })));
 
-async function abgaengeHinzufuegen(){
+async function abgaengeHinzufuegen(rcdVorgabe){
   const a = await formular({
     titel: "Abgänge hinzufügen",
     text: "Gleichartige Abgänge lassen sich in einem Zug anlegen.",
     felder: [
       { art:"wahl", name:"art", beschriftung:"Art", optionen: ABGANGSARTEN.map(x => ({ wert:x, text:x })) },
       { art:"zahl", name:"anzahl", beschriftung:"Anzahl", wert:"1" },
-      { art:"wahl", name:"rcd", beschriftung:"Hinter RCD", optionen: rcdOptionen() },
+      { art:"wahl", name:"rcd", beschriftung:"Hinter RCD",
+        wert: rcdVorgabe || "", optionen: rcdOptionen() },
     ],
     knoepfe: [{ text:"Weiter zur Absicherung", wert:true }, { text:"Abbrechen", wert:false, art:"leer" }],
   });
@@ -3370,7 +3404,7 @@ async function typHinzufuegen(){
   BESTAND.push(t);
   await bestandSpeichern(BESTAND);
   bestandZeichnen();
-  if (t.anschluss) await typAbgaenge(t);
+  if (t.anschluss) typOeffnen(t);
 }
 
 /* Liste der Abgänge eines Typs. Jede Gruppe ist ein Knopf. */
@@ -3380,43 +3414,6 @@ const typRcdName = (t, id) => {
 };
 const typRcdOptionen = (t) =>
   [{ wert:"", text:"kein RCD" }].concat((t.rcds || []).map(r => ({ wert:r.id, text:r.name })));
-
-async function typAbgaenge(t){
-  if (!t.gruppen) t.gruppen = [];
-  if (!t.rcds) t.rcds = [];
-  while (true){
-    const knoepfe = [{ text:"Fertig", wert:"fertig" }];
-    t.rcds.forEach((r, i) => knoepfe.push({
-      text: r.name + " · " + kettenText(r),
-      wert: "r" + i, art:"leer",
-    }));
-    t.gruppen.forEach((g, i) => knoepfe.push({
-      text: g.anzahl + " × " + g.art + " · " + sicherungText(g.sicherung) +
-            (typRcdName(t, g.rcd) ? " · hinter " + typRcdName(t, g.rcd) : ""),
-      wert: "g" + i, art:"leer",
-    }));
-    knoepfe.push({ text:"Abgang hinzufügen", wert:"neu", art:"leer" });
-    knoepfe.push({ text:"RCD-Gruppe hinzufügen", wert:"rcdneu", art:"leer" });
-    if (t.anschluss === "CEE 63A")
-      knoepfe.push({ text: (t.durchgeschleift ? "✓ " : "") + "Durchgeschleifter Abgang CEE 63 A",
-                     wert:"durch", art:"leer" });
-    const a = await frage({
-      titel: t.name,
-      text: "Anschluss " + (t.anschluss || "ohne Angabe") +
-            ". Größere Abgänge als der Anschluss stehen nicht zur Wahl.",
-      knoepfe,
-    });
-    if (!a.wahl || a.wahl === "fertig") break;
-    if (a.wahl === "durch")        t.durchgeschleift = !t.durchgeschleift;
-    else if (a.wahl === "neu")     await typGruppe(t, null);
-    else if (a.wahl === "rcdneu")  await typRcd(t, null);
-    else if (a.wahl[0] === "r")    await typRcd(t, t.rcds[Number(a.wahl.slice(1))]);
-    else                           await typGruppe(t, t.gruppen[Number(a.wahl.slice(1))]);
-    await bestandSpeichern(BESTAND);
-  }
-  await bestandSpeichern(BESTAND);
-  bestandZeichnen();
-}
 
 /* Eine RCD-Gruppe am Typ. Sie kann wie im Plan ein vorgeschaltetes
    Gerät führen, also die gemeinsame Vorsicherung vor dem FI. */
@@ -3460,7 +3457,7 @@ async function typRcd(t, r){
 }
 
 /* Eine Gruppe gleichartiger Abgänge am Typ */
-async function typGruppe(t, g){
+async function typGruppe(t, g, rcdVorgabe){
   const erlaubt = bisGroesse(t.anschluss);
   const a = await formular({
     titel: g ? "Abgänge ändern" : "Abgänge hinzufügen",
@@ -3471,7 +3468,7 @@ async function typGruppe(t, g){
         optionen: erlaubt.map(x => ({ wert:x, text:x })) },
       { art:"zahl", name:"anzahl", beschriftung:"Anzahl", wert: g ? String(g.anzahl) : "1" },
       { art:"wahl", name:"rcd", beschriftung:"Hinter RCD",
-        wert: (g && g.rcd) || "", optionen: typRcdOptionen(t) },
+        wert: (g ? g.rcd : rcdVorgabe) || "", optionen: typRcdOptionen(t) },
     ],
     knoepfe: [{ text: g ? "Übernehmen" : "Weiter zur Absicherung", wert:"ok" }]
       .concat(g ? [{ text:"Absicherung ändern", wert:"sicherung", art:"leer" },
@@ -3521,6 +3518,7 @@ function bestueckungAusTyp(t){
   return { rcds, abgaenge };
 }
 
+/* Der Bildschirm für die Ausstattung steht in Abschnitt 7a. */
 async function typBearbeiten(t){
   const benutzt = PLAN ? imEinsatz(t.id) : 0;
   const a = await formular({
@@ -3533,7 +3531,7 @@ async function typBearbeiten(t){
         optionen: anschlussOptionen() },
     ],
     knoepfe: [{ text:"Übernehmen", wert:"ok" },
-              { text:"Abgänge festlegen", wert:"abgaenge", art:"leer" },
+              { text:"Ausstattung", wert:"abgaenge", art:"leer" },
               { text:"Typ löschen", wert:"weg", art:"gefahr" },
               { text:"Abbrechen", wert:null, art:"leer" }],
   });
@@ -3583,17 +3581,206 @@ async function typBearbeiten(t){
       t.anschluss = anschluss;
     }
     if (a.wahl === "abgaenge"){
-      if (!t.anschluss){
-        await bestandSpeichern(BESTAND);
-        return hinweis("Anschluss fehlt",
-          "Leg zuerst den Anschluss fest, dann steht fest, welche Abgänge möglich sind.");
-      }
       await bestandSpeichern(BESTAND);
-      return typAbgaenge(t);
+      return typOeffnen(t);
     }
   }
   await bestandSpeichern(BESTAND);
   bestandZeichnen();
+}
+
+/* ================================================================== */
+/* 7a · Ausstattung eines Bestandstyps                                 */
+/* ================================================================== */
+
+/* ---- Bausteine für gegliederte Listen ---- */
+
+/* Kleine Zwischenüberschrift innerhalb eines Abschnitts */
+function unterschrift(ziel, text){
+  const d = document.createElement("div");
+  d.className = "unterschrift";
+  d.textContent = text;
+  ziel.appendChild(d);
+  return d;
+}
+
+/* Eingerückter Kasten mit Linie links – das Gegenstück zur
+   Untersammelschiene im Schaltbild */
+function gruppenKasten(ziel){
+  const d = document.createElement("div");
+  d.className = "gruppe";
+  ziel.appendChild(d);
+  return d;
+}
+
+/* Leiser Knopf zum Anlegen, gehört immer zu dem Abschnitt darüber */
+function zuKnopf(ziel, text, beiKlick){
+  const b = document.createElement("button");
+  b.className = "zuknopf";
+  b.textContent = "+  " + text;
+  b.addEventListener("click", beiKlick);
+  ziel.appendChild(b);
+  return b;
+}
+
+/* Zeile mit Kästchen zum Ankreuzen */
+function hakenZeile(ziel, { text, unten, an, beiKlick }){
+  const b = document.createElement("button");
+  b.className = "hakenzeile" + (an ? " an" : "");
+  b.innerHTML = '<span class="haken">&#10003;</span>' +
+                '<span class="haupt"><span class="oben"></span><span class="unten"></span></span>';
+  b.querySelector(".oben").textContent = text;
+  b.querySelector(".unten").textContent = unten || "";
+  b.addEventListener("click", beiKlick);
+  ziel.appendChild(b);
+  return b;
+}
+
+const knopfIn = (ziel, t, beiKlick, art) => {
+  const b = document.createElement("button");
+  b.className = "knopf" + (art ? " " + art : "");
+  b.textContent = t;
+  b.addEventListener("click", beiKlick);
+  ziel.appendChild(b);
+  return b;
+};
+const platzhalterIn = (ziel, text) => {
+  const p = document.createElement("div");
+  p.className = "platzhalter";
+  p.textContent = text;
+  ziel.appendChild(p);
+};
+
+/* ---- Ausstattung eines Bestandstyps ---- */
+
+let TYP = null;
+
+function typOeffnen(t){
+  TYP = t;
+  if (!TYP.gruppen) TYP.gruppen = [];
+  if (!TYP.rcds) TYP.rcds = [];
+  $("typTitel").textContent = t.name;
+  typZeichnen();
+  schirmZeigen("schirmTyp");
+}
+
+$("typZurueck").addEventListener("click", async () => {
+  await bestandSpeichern(BESTAND);
+  TYP = null;
+  bestandZeichnen();
+  schirmZeigen("schirmBestand");
+});
+
+/* Eine Abgangsgruppe als Zeile */
+function gruppenZeile(ziel, g){
+  ziel.appendChild(zeile({
+    nr: g.anzahl,
+    oben: g.art,
+    unten: sicherungText(g.sicherung),
+    beiKlick: async () => { await typGruppe(TYP, g); await bestandSpeichern(BESTAND); typZeichnen(); },
+  }));
+}
+
+function typZeichnen(){
+  const ziel = $("typInhalt");
+  ziel.innerHTML = "";
+  const t = TYP;
+
+  const stueck = t.gruppen.reduce((n, g) => n + g.anzahl, 0) + (t.durchgeschleift ? 1 : 0);
+  platzhalterIn(ziel, [t.anschluss || "Anschluss offen",
+                       stueck === 1 ? "1 Abgang" : stueck + " Abgänge",
+                       t.rcds.length ? (t.rcds.length === 1 ? "1 RCD-Gruppe" : t.rcds.length + " RCD-Gruppen") : null]
+                      .filter(Boolean).join(" · "));
+
+  /* --- Anschluss --- */
+  const h1 = document.createElement("h2"); h1.textContent = "Anschluss"; ziel.appendChild(h1);
+  ziel.appendChild(zeile({
+    oben: t.anschluss || "noch nicht festgelegt",
+    unten: "Größere Abgänge als der Anschluss stehen nicht zur Wahl",
+    beiKlick: typAnschlussAendern,
+  }));
+  if (t.anschluss === "CEE 63A")
+    hakenZeile(ziel, {
+      text: "Durchgeschleifter Abgang",
+      unten: "CEE 63 A ohne Absicherung, direkt am Anschluss",
+      an: !!t.durchgeschleift,
+      beiKlick: async () => {
+        t.durchgeschleift = !t.durchgeschleift;
+        await bestandSpeichern(BESTAND);
+        typZeichnen();
+      },
+    });
+
+  /* --- Abgänge --- */
+  const h2 = document.createElement("h2"); h2.textContent = "Abgänge"; ziel.appendChild(h2);
+  if (!t.anschluss){
+    platzhalterIn(ziel, "Leg zuerst den Anschluss fest.");
+    return;
+  }
+
+  const direkt = t.gruppen.filter(g => !g.rcd);
+  if (t.rcds.length) unterschrift(ziel, "Direkt am Anschluss");
+  if (!direkt.length && !t.rcds.length) platzhalterIn(ziel, "Noch keine Abgänge angelegt.");
+  direkt.forEach(g => gruppenZeile(ziel, g));
+  zuKnopf(ziel, "Abgänge", () => typGruppeNeu(null));
+
+  for (const r of t.rcds){
+    const dahinter = t.gruppen.filter(g => g.rcd === r.id);
+    ziel.appendChild(zeile({
+      oben: r.name,
+      unten: kettenText(r),
+      beiKlick: async () => { await typRcd(t, r); await bestandSpeichern(BESTAND); typZeichnen(); },
+    }));
+    const kasten = gruppenKasten(ziel);
+    if (!dahinter.length) platzhalterIn(kasten, "Noch nichts hinter dieser Gruppe.");
+    dahinter.forEach(g => gruppenZeile(kasten, g));
+    zuKnopf(kasten, "Abgänge", () => typGruppeNeu(r.id));
+  }
+
+  knopfIn(ziel, "RCD-Gruppe hinzufügen", async () => {
+    await typRcd(TYP, null);
+    await bestandSpeichern(BESTAND);
+    typZeichnen();
+  }, "leer").style.marginTop = "10px";
+}
+
+async function typGruppeNeu(rcdId){
+  await typGruppe(TYP, null, rcdId);
+  await bestandSpeichern(BESTAND);
+  typZeichnen();
+}
+
+async function typAnschlussAendern(){
+  const t = TYP;
+  const a = await formular({
+    titel: "Anschluss",
+    text: "Womit wird der Verteiler gespeist? Danach richtet sich, welche Abgänge möglich sind.",
+    felder: [{ art:"wahl", name:"anschluss", beschriftung:"Anschluss",
+               wert: t.anschluss || "", optionen: anschlussOptionen() }],
+    knoepfe: [{ text:"Übernehmen", wert:true }, { text:"Abbrechen", wert:false, art:"leer" }],
+  });
+  if (!a.wahl) return;
+  const neu = a.werte.anschluss || null;
+  if (neu === t.anschluss) return;
+  const zuGross = t.gruppen.filter(g => STECKERGROESSE[g.art] > (STECKERGROESSE[neu] || 99));
+  const durchWeg = t.durchgeschleift && neu !== "CEE 63A";
+  if (zuGross.length || durchWeg){
+    const b = await frage({
+      titel: "Abgänge passen nicht mehr",
+      text: "Mit dem Anschluss " + (neu || "ohne Angabe") + " " +
+            (zuGross.length ? "entfallen " + zuGross.map(g => g.anzahl + " × " + g.art).join(", ")
+                            : "entfällt der durchgeschleifte Abgang") +
+            (zuGross.length && durchWeg ? " und der durchgeschleifte Abgang" : "") + ".",
+      knoepfe: [{ text:"Anschluss ändern", wert:true, art:"gefahr" },
+                { text:"Abbrechen", wert:false, art:"leer" }],
+    });
+    if (!b.wahl) return;
+    t.gruppen = t.gruppen.filter(g => STECKERGROESSE[g.art] <= (STECKERGROESSE[neu] || 99));
+    if (durchWeg) t.durchgeschleift = false;
+  }
+  t.anschluss = neu;
+  await bestandSpeichern(BESTAND);
+  typZeichnen();
 }
 
 /* ================================================================== */
