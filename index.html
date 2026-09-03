@@ -2,7 +2,7 @@
 <html lang="de">
 <!--
   SF E-Plan
-  v1.44 · 03.09.2026
+  v1.45 · 03.09.2026
 
   Änderungsliste
   v1.0  Stufe 1: DWG einlesen, Plan dauerhaft ablegen, mehrere Pläne
@@ -246,6 +246,18 @@
         Ober- und Unterzeile einer Listenzeile liefen ineinander, weil
         beide inline standen – jetzt display:block, damit greift auch
         die Kürzung mit Auslassungspunkten.
+  v1.45 Gefunden und behoben: die leere Planansicht. groesseSetzen holt
+        die Maße vom Rahmen, und der misst 0 × 0, solange sein Bildschirm
+        verborgen ist – die Leinwand schrumpfte dann auf 1 × 1 und blieb
+        beim Zurückkommen leer. Ausgelöst hat das jede Größenänderung
+        während man woanders war, vor allem die Tastatur in einem
+        Fenster. Jetzt bricht groesseSetzen bei einem leeren Rahmen ab,
+        die Nachführung läuft nur bei sichtbarer Planansicht, und beim
+        Wechsel dorthin werden die Maße neu gesetzt. Dazu setzt das
+        Schließen eines Fensters einen Rest zurück, den iOS nach der
+        Tastatur stehen lässt und der Tipps neben die Knöpfe legt.
+        Außerdem: Reihenfolge der Abgänge auch in der Ausstattung
+        änderbar, und "Entfernen" heißt dort jetzt "Abgänge löschen".
 -->
 <head>
 <meta charset="utf-8">
@@ -687,7 +699,7 @@
 <script type="module">
 "use strict";
 
-const FASSUNG = "v1.44 · 03.09.2026";
+const FASSUNG = "v1.45 · 03.09.2026";
 
 /* Ein Fehler in einem Klickhandler bleibt sonst unbemerkt: der Knopf tut
    einfach nichts. Beides – geworfene Fehler und gescheiterte Versprechen –
@@ -730,6 +742,14 @@ const naechsterRahmen = () => new Promise(r => requestAnimationFrame(() => r()))
 function arbeitAn(text){ $("arbeitText").textContent = text; $("arbeit").classList.add("an"); }
 function arbeitAus(){ $("arbeit").classList.remove("an"); }
 
+/* Fenster schließen. Der Rücksprung auf null fängt einen Rest ab, den
+   iOS nach dem Schließen der Tastatur gelegentlich stehen lässt: die
+   Seite bleibt dann verschoben, und Tipps landen neben den Knöpfen. */
+function fensterZu(){
+  $("schleier").classList.remove("an");
+  if (window.scrollY || window.scrollX) window.scrollTo(0, 0);
+}
+
 /* Abfragen laufen über ein eigenes Fenster, nicht über Systemdialoge. */
 function frage({ titel, text, felder, knoepfe }){
   return new Promise(fertig => {
@@ -750,7 +770,7 @@ function frage({ titel, text, felder, knoepfe }){
       b.className = "knopf" + (k.art === "leer" ? " leer" : k.art === "gefahr" ? " gefahr" : "");
       b.textContent = k.text;
       b.addEventListener("click", () => {
-        $("schleier").classList.remove("an");
+        fensterZu();
         fertig({ wahl:k.wert, werte:eingaben.map(e => e.value.trim()) });
       });
       box.appendChild(b);
@@ -802,7 +822,7 @@ function formular({ titel, text, felder, knoepfe }){
       b.className = "knopf" + (k.art === "leer" ? " leer" : k.art === "gefahr" ? " gefahr" : "");
       b.textContent = k.text;
       b.addEventListener("click", () => {
-        $("schleier").classList.remove("an");
+        fensterZu();
         const werte = {};
         for (const n of Object.keys(eingaben)) werte[n] = eingaben[n].value;
         fertig({ wahl:k.wert, werte });
@@ -895,10 +915,10 @@ function sicherungWaehlen(aktuell, titel){
       box.className = "fensterknoepfe";
       const ok = document.createElement("button");
       ok.className = "knopf"; ok.textContent = "Übernehmen";
-      ok.addEventListener("click", () => { $("schleier").classList.remove("an"); fertig(stand); });
+      ok.addEventListener("click", () => { fensterZu(); fertig(stand); });
       const ab = document.createElement("button");
       ab.className = "knopf leer"; ab.textContent = "Abbrechen";
-      ab.addEventListener("click", () => { $("schleier").classList.remove("an"); fertig(null); });
+      ab.addEventListener("click", () => { fensterZu(); fertig(null); });
       box.appendChild(ok); box.appendChild(ab);
       f.appendChild(box);
     }
@@ -1589,6 +1609,9 @@ const ctx = leinwand.getContext("2d");
 
 function schirmZeigen(id){
   document.querySelectorAll(".schirm").forEach(s => s.classList.toggle("an", s.id === id));
+  /* Die Leinwand bekommt ihre Größe erst, wenn ihr Bildschirm wieder
+     sichtbar ist. Wer hierher wechselt, zeichnet gleich danach. */
+  if (id === "schirmPlan" && PLAN) groesseSetzen();
 }
 
 async function planOeffnen(id){
@@ -1645,8 +1668,12 @@ function pfadeBauen(p){
   return { striche, flaechen };
 }
 
+/* Nur aufrufen, solange die Planansicht sichtbar ist: im verborgenen
+   Zustand liefert der Rahmen 0 × 0, die Leinwand würde auf 1 × 1
+   schrumpfen und beim Zurückkommen leer bleiben. */
 function groesseSetzen(){
   const r = $("leinwandRahmen").getBoundingClientRect();
+  if (r.width < 2 || r.height < 2) return r;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const br = Math.max(1, Math.round(r.width*dpr)), ho = Math.max(1, Math.round(r.height*dpr));
   leinwand.width = br; leinwand.height = ho;
@@ -2015,7 +2042,7 @@ function farbenWaehlen(){
   ok.className = "knopf";
   ok.textContent = "Übernehmen";
   ok.addEventListener("click", async () => {
-    $("schleier").classList.remove("an");
+    fensterZu();
     PLAN.farbenAus = [...aus];
     await planSpeichern(PLAN);
     zeichne();
@@ -2812,7 +2839,11 @@ leinwand.addEventListener("wheel", ev => {
   neuZeichnen();
 }, { passive:false });
 
-const groesseNachfuehren = () => { if (PLAN){ groesseSetzen(); zeichne(); } };
+const groesseNachfuehren = () => {
+  if (!PLAN || !$("schirmPlan").classList.contains("an")) return;
+  groesseSetzen();
+  zeichne();
+};
 window.addEventListener("resize", groesseNachfuehren);
 window.addEventListener("orientationchange", groesseNachfuehren);
 if (window.visualViewport) window.visualViewport.addEventListener("resize", groesseNachfuehren);
@@ -3472,7 +3503,7 @@ async function typGruppe(t, g, rcdVorgabe){
     ],
     knoepfe: [{ text: g ? "Übernehmen" : "Weiter zur Absicherung", wert:"ok" }]
       .concat(g ? [{ text:"Absicherung ändern", wert:"sicherung", art:"leer" },
-                   { text:"Entfernen", wert:"weg", art:"gefahr" }] : [])
+                   { text:"Abgänge löschen", wert:"weg", art:"gefahr" }] : [])
       .concat([{ text:"Abbrechen", wert:null, art:"leer" }]),
   });
   if (!a.wahl) return;
@@ -3654,9 +3685,31 @@ const platzhalterIn = (ziel, text) => {
 /* ---- Ausstattung eines Bestandstyps ---- */
 
 let TYP = null;
+let typSort = false;
+
+/* Verschoben wird nur innerhalb der eigenen Gruppe, wie im Verteiler.
+   Die Reihenfolge bestimmt später, in welcher Folge die Abgänge im
+   Plan angelegt werden. */
+function typNachbar(i, richtung){
+  const liste = TYP.gruppen, g = liste[i].rcd || null;
+  for (let k = i + richtung; k >= 0 && k < liste.length; k += richtung)
+    if ((liste[k].rcd || null) === g) return k;
+  return -1;
+}
+async function typVerschieben(g, richtung){
+  const liste = TYP.gruppen;
+  const i = liste.indexOf(g);
+  if (i < 0) return;
+  const k = typNachbar(i, richtung);
+  if (k < 0) return;
+  liste[i] = liste[k]; liste[k] = g;
+  await bestandSpeichern(BESTAND);
+  typZeichnen();
+}
 
 function typOeffnen(t){
   TYP = t;
+  typSort = false;
   if (!TYP.gruppen) TYP.gruppen = [];
   if (!TYP.rcds) TYP.rcds = [];
   $("typTitel").textContent = t.name;
@@ -3673,11 +3726,18 @@ $("typZurueck").addEventListener("click", async () => {
 
 /* Eine Abgangsgruppe als Zeile */
 function gruppenZeile(ziel, g){
+  const i = TYP.gruppen.indexOf(g);
   ziel.appendChild(zeile({
     nr: g.anzahl,
     oben: g.art,
     unten: sicherungText(g.sicherung),
     beiKlick: async () => { await typGruppe(TYP, g); await bestandSpeichern(BESTAND); typZeichnen(); },
+    sortier: typSort ? {
+      auf: typNachbar(i, -1) >= 0,
+      ab:  typNachbar(i, +1) >= 0,
+      beiAuf: () => typVerschieben(g, -1),
+      beiAb:  () => typVerschieben(g, +1),
+    } : null,
   }));
 }
 
@@ -3718,11 +3778,18 @@ function typZeichnen(){
     return;
   }
 
+  if (t.gruppen.length > 1){
+    const rk = knopfIn(ziel, typSort ? "Reihenfolge fertig" : "Reihenfolge ändern",
+                       () => { typSort = !typSort; typZeichnen(); },
+                       typSort ? "" : "leer");
+    rk.style.marginBottom = "10px";
+  }
+
   const direkt = t.gruppen.filter(g => !g.rcd);
   if (t.rcds.length) unterschrift(ziel, "Direkt am Anschluss");
   if (!direkt.length && !t.rcds.length) platzhalterIn(ziel, "Noch keine Abgänge angelegt.");
   direkt.forEach(g => gruppenZeile(ziel, g));
-  zuKnopf(ziel, "Abgänge", () => typGruppeNeu(null));
+  if (!typSort) zuKnopf(ziel, "Abgänge", () => typGruppeNeu(null));
 
   for (const r of t.rcds){
     const dahinter = t.gruppen.filter(g => g.rcd === r.id);
@@ -3734,9 +3801,10 @@ function typZeichnen(){
     const kasten = gruppenKasten(ziel);
     if (!dahinter.length) platzhalterIn(kasten, "Noch nichts hinter dieser Gruppe.");
     dahinter.forEach(g => gruppenZeile(kasten, g));
-    zuKnopf(kasten, "Abgänge", () => typGruppeNeu(r.id));
+    if (!typSort) zuKnopf(kasten, "Abgänge", () => typGruppeNeu(r.id));
   }
 
+  if (typSort) return;
   knopfIn(ziel, "RCD-Gruppe hinzufügen", async () => {
     await typRcd(TYP, null);
     await bestandSpeichern(BESTAND);
