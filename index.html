@@ -2,7 +2,7 @@
 <html lang="de">
 <!--
   SF E-Plan
-  v1.41 · 03.09.2026
+  v1.42 · 03.09.2026
 
   Änderungsliste
   v1.0  Stufe 1: DWG einlesen, Plan dauerhaft ablegen, mehrere Pläne
@@ -223,6 +223,10 @@
         heranzuscrollen – die oberen Knöpfe waren dann nicht zu treffen,
         die unteren schon. Passt zu Jeans Beobachtung, dass es die
         oberen häufiger erwischt hat.
+  v1.42 Fehlerband am unteren Rand: geworfene Fehler und gescheiterte
+        Versprechen werden angezeigt statt still zu verschwinden. Ein
+        Fehler in einem Klickhandler sah bisher so aus, als täte der
+        Knopf nichts. Antippen blendet das Band aus.
 -->
 <head>
 <meta charset="utf-8">
@@ -474,6 +478,14 @@
   .pfeilknopf:active{background:var(--flaeche)}
   .pfeilknopf:disabled{opacity:.25}
   .platzhalter{color:var(--ink-leise);font-size:14px;padding:6px 2px 12px}
+  /* Meldet Fehler, die sonst still einen Knopf lahmlegen würden.
+     Antippen blendet das Band wieder aus. */
+  #fehlerband{
+    position:fixed;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));
+    z-index:200;background:#B3261E;color:#fff;padding:11px 13px;border-radius:12px;
+    font-size:13px;line-height:1.35;box-shadow:0 6px 20px rgba(27,36,48,.3);
+    word-break:break-word;
+  }
   .fenster label{display:block;font-size:13px;color:var(--ink-leise);margin:12px 0 2px}
   .fenster select{
     width:100%;padding:12px 14px;border:1px solid var(--linie);border-radius:var(--radius);
@@ -614,7 +626,29 @@
 <script type="module">
 "use strict";
 
-const FASSUNG = "v1.41 · 03.09.2026";
+const FASSUNG = "v1.42 · 03.09.2026";
+
+/* Ein Fehler in einem Klickhandler bleibt sonst unbemerkt: der Knopf tut
+   einfach nichts. Beides – geworfene Fehler und gescheiterte Versprechen –
+   landet deshalb sichtbar in einem Band am unteren Rand. */
+function fehlerMelden(text){
+  let k = document.getElementById("fehlerband");
+  if (!k){
+    k = document.createElement("div");
+    k.id = "fehlerband";
+    k.addEventListener("click", () => k.remove());
+    document.body.appendChild(k);
+  }
+  k.textContent = text;
+}
+window.addEventListener("error", ev => {
+  const wo = ev.lineno ? " (Zeile " + ev.lineno + ")" : "";
+  fehlerMelden("Fehler: " + (ev.message || "unbekannt") + wo);
+});
+window.addEventListener("unhandledrejection", ev => {
+  const g = ev.reason;
+  fehlerMelden("Fehler: " + String((g && (g.stack || g.message)) || g).slice(0, 300));
+});
 
 /* ================================================================== */
 /* 1 · Kleinkram                                                       */
