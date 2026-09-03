@@ -2,7 +2,7 @@
 <html lang="de">
 <!--
   SF E-Plan
-  v1.37 · 03.09.2026
+  v1.38 · 03.09.2026
 
   Änderungsliste
   v1.0  Stufe 1: DWG einlesen, Plan dauerhaft ablegen, mehrere Pläne
@@ -201,6 +201,8 @@
         Home-Bildschirm gehört apple-touch-icon.png (180 px) neben die
         index.html, iOS nimmt dafür kein SVG. Der Browserreiter bekommt
         dasselbe Bild als SVG, das steckt in der Datei.
+  v1.38 Zusätzlich favicon.ico (16, 32, 48 px) neben der index.html:
+        Safari wertet SVG als Reitersymbol nicht aus.
 -->
 <head>
 <meta charset="utf-8">
@@ -209,10 +211,12 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="SF E-Plan">
 <meta name="theme-color" content="#1B2430">
-<!-- Symbol für den Home-Bildschirm. iOS nimmt dafür nur PNG, deshalb liegt
-     apple-touch-icon.png neben dieser Datei. Der Reiter im Browser bekommt
-     dasselbe Bild als SVG, das steckt hier drin. -->
+<!-- Symbol für den Home-Bildschirm: iOS nimmt dafür nur PNG, deshalb liegt
+     apple-touch-icon.png neben dieser Datei. Für den Reiter im Browser steht
+     das SVG als Datenblock hier drin; Safari kann damit nichts anfangen und
+     greift auf favicon.ico zurück, das ebenfalls danebenliegt. -->
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDI0IDEwMjQiIHdpZHRoPSIxMDI0IiBoZWlnaHQ9IjEwMjQiPgogIDxkZWZzPgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJuYWNodCIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiMxQjFGNUMiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMDgwQTI2Ii8+CiAgICA8L2xpbmVhckdyYWRpZW50PgoKICAgIDxjbGlwUGF0aCBpZD0ia2FjaGVsIj4KICAgICAgPHJlY3Qgd2lkdGg9IjEwMjQiIGhlaWdodD0iMTAyNCIgcng9IjIyNCIvPgogICAgPC9jbGlwUGF0aD4KCiAgICA8IS0tIERlciBCbGl0eiB3aXJkIGF1cyBkZW0gUmFkIGhlcmF1c2dlc2Nobml0dGVuOiBzY2h3YXJ6ZSBGbGFlY2hlID0gQXVzc3BhcnVuZy4KICAgICAgICAgRGllIE1hc2tlIHdpcmt0IE5BQ0ggZGVtIEdsb3csIGRhbWl0IGRpZSBBdXNzcGFydW5nIHNjaGFyZmthbnRpZyBibGVpYnQuIC0tPgogICAgPG1hc2sgaWQ9ImJsaXR6LWF1c3NwYXJ1bmciPgogICAgICA8cmVjdCB3aWR0aD0iMTAyNCIgaGVpZ2h0PSIxMDI0IiBmaWxsPSIjZmZmZmZmIi8+CiAgICAgIDxwYXRoIGQ9Ik01MzMgMjMwIEwzMjMgNDgyIEw1MTIgNDgyIEw0OTEgNjUwIEw3MDEgMzk4IEw1MTIgMzk4IFoiCiAgICAgICAgICAgIGZpbGw9IiMwMDAwMDAiIHN0cm9rZT0iIzAwMDAwMCIgc3Ryb2tlLXdpZHRoPSI0NCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgogICAgPC9tYXNrPgoKICAgIDxmaWx0ZXIgaWQ9Imdsb3ctZ2VsYiIgeD0iLTM1JSIgeT0iLTM1JSIgd2lkdGg9IjE3MCUiIGhlaWdodD0iMTcwJSIKICAgICAgICAgICAgY29sb3ItaW50ZXJwb2xhdGlvbi1maWx0ZXJzPSJzUkdCIj4KICAgICAgPGZlR2F1c3NpYW5CbHVyIGluPSJTb3VyY2VHcmFwaGljIiBzdGREZXZpYXRpb249IjM2IiByZXN1bHQ9IndlaXQiLz4KICAgICAgPGZlR2F1c3NpYW5CbHVyIGluPSJTb3VyY2VHcmFwaGljIiBzdGREZXZpYXRpb249IjEzIiByZXN1bHQ9ImVuZyIvPgogICAgICA8ZmVNZXJnZT4KICAgICAgICA8ZmVNZXJnZU5vZGUgaW49IndlaXQiLz4KICAgICAgICA8ZmVNZXJnZU5vZGUgaW49IndlaXQiLz4KICAgICAgICA8ZmVNZXJnZU5vZGUgaW49ImVuZyIvPgogICAgICAgIDxmZU1lcmdlTm9kZSBpbj0iU291cmNlR3JhcGhpYyIvPgogICAgICA8L2ZlTWVyZ2U+CiAgICA8L2ZpbHRlcj4KCiAgICA8ZmlsdGVyIGlkPSJnbG93LXJvdCIgeD0iLTQ1JSIgeT0iLTQ1JSIgd2lkdGg9IjE5MCUiIGhlaWdodD0iMTkwJSIKICAgICAgICAgICAgY29sb3ItaW50ZXJwb2xhdGlvbi1maWx0ZXJzPSJzUkdCIj4KICAgICAgPGZlR2F1c3NpYW5CbHVyIGluPSJTb3VyY2VHcmFwaGljIiBzdGREZXZpYXRpb249IjI2IiByZXN1bHQ9IndlaXQiLz4KICAgICAgPGZlR2F1c3NpYW5CbHVyIGluPSJTb3VyY2VHcmFwaGljIiBzdGREZXZpYXRpb249IjkiIHJlc3VsdD0iZW5nIi8+CiAgICAgIDxmZU1lcmdlPgogICAgICAgIDxmZU1lcmdlTm9kZSBpbj0id2VpdCIvPgogICAgICAgIDxmZU1lcmdlTm9kZSBpbj0iZW5nIi8+CiAgICAgICAgPGZlTWVyZ2VOb2RlIGluPSJTb3VyY2VHcmFwaGljIi8+CiAgICAgIDwvZmVNZXJnZT4KICAgIDwvZmlsdGVyPgogIDwvZGVmcz4KCiAgPGcgY2xpcC1wYXRoPSJ1cmwoI2thY2hlbCkiPgogICAgPHJlY3Qgd2lkdGg9IjEwMjQiIGhlaWdodD0iMTAyNCIgZmlsbD0idXJsKCNuYWNodCkiLz4KCiAgICA8IS0tIFJhZDogU3BlaWNoZW4sIEtyYW56LCBHb25kZWxuIC0tPgogICAgPGcgZmlsdGVyPSJ1cmwoI2dsb3ctZ2VsYikiIG1hc2s9InVybCgjYmxpdHotYXVzc3BhcnVuZykiPgogICAgICA8ZyBmaWxsPSJub25lIiBzdHJva2U9IiNGRkM5NEEiIHN0cm9rZS13aWR0aD0iMjYiPgogICAgICAgIDxsaW5lIHgxPSI1MTIiIHkxPSIxNjQiIHgyPSI1MTIiIHkyPSI3MTYiLz4KICAgICAgICA8bGluZSB4MT0iNjUwIiB5MT0iMjAxIiB4Mj0iMzc0IiB5Mj0iNjc5Ii8+CiAgICAgICAgPGxpbmUgeDE9Ijc1MSIgeTE9IjMwMiIgeDI9IjI3MyIgeTI9IjU3OCIvPgogICAgICAgIDxsaW5lIHgxPSI3ODgiIHkxPSI0NDAiIHgyPSIyMzYiIHkyPSI0NDAiLz4KICAgICAgICA8bGluZSB4MT0iNzUxIiB5MT0iNTc4IiB4Mj0iMjczIiB5Mj0iMzAyIi8+CiAgICAgICAgPGxpbmUgeDE9IjY1MCIgeTE9IjY3OSIgeDI9IjM3NCIgeTI9IjIwMSIvPgogICAgICA8L2c+CgogICAgICA8Y2lyY2xlIGN4PSI1MTIiIGN5PSI0NDAiIHI9IjI5MiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRkZDOTRBIiBzdHJva2Utd2lkdGg9IjMyIi8+CgogICAgICA8ZyBmaWxsPSIjRkZDOTRBIj4KICAgICAgICA8Y2lyY2xlIGN4PSI1MTIiICAgY3k9IjEyOCIgICByPSIyNiIvPgogICAgICAgIDxjaXJjbGUgY3g9IjY2OCIgICBjeT0iMTY5LjgiIHI9IjI2Ii8+CiAgICAgICAgPGNpcmNsZSBjeD0iNzgyLjIiIGN5PSIyODQiICAgcj0iMjYiLz4KICAgICAgICA8Y2lyY2xlIGN4PSI4MjQiICAgY3k9IjQ0MCIgICByPSIyNiIvPgogICAgICAgIDxjaXJjbGUgY3g9Ijc4Mi4yIiBjeT0iNTk2IiAgIHI9IjI2Ii8+CiAgICAgICAgPGNpcmNsZSBjeD0iNjY4IiAgIGN5PSI3MTAuMiIgcj0iMjYiLz4KICAgICAgICA8Y2lyY2xlIGN4PSI1MTIiICAgY3k9Ijc1MiIgICByPSIyNiIvPgogICAgICAgIDxjaXJjbGUgY3g9IjM1NiIgICBjeT0iNzEwLjIiIHI9IjI2Ii8+CiAgICAgICAgPGNpcmNsZSBjeD0iMjQxLjgiIGN5PSI1OTYiICAgcj0iMjYiLz4KICAgICAgICA8Y2lyY2xlIGN4PSIyMDAiICAgY3k9IjQ0MCIgICByPSIyNiIvPgogICAgICAgIDxjaXJjbGUgY3g9IjI0MS44IiBjeT0iMjg0IiAgIHI9IjI2Ii8+CiAgICAgICAgPGNpcmNsZSBjeD0iMzU2IiAgIGN5PSIxNjkuOCIgcj0iMjYiLz4KICAgICAgPC9nPgogICAgPC9nPgoKICAgIDwhLS0gU3RhbmRmdXNzOiBTdHJlYmVuIGxhdWZlbiBhdWYgZGllIE5hYmUgenUsIHNpY2h0YmFyIGVyc3QgdW50ZXJoYWxiIGRlcyBLcmFuemVzIC0tPgogICAgPGcgZmlsdGVyPSJ1cmwoI2dsb3ctcm90KSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRkY0QTNEIiBzdHJva2Utd2lkdGg9IjMwIiBzdHJva2UtbGluZWNhcD0icm91bmQiPgogICAgICA8bGluZSB4MT0iNDM1LjQiIHkxPSI3MjUuOSIgeDI9IjM4OC4yIiB5Mj0iOTAyIi8+CiAgICAgIDxsaW5lIHgxPSI1ODguNiIgeTE9IjcyNS45IiB4Mj0iNjM1LjgiIHkyPSI5MDIiLz4KICAgICAgPGxpbmUgeDE9IjMzOCIgICB5MT0iOTAyIiAgIHgyPSI2ODYiICAgeTI9IjkwMiIvPgogICAgPC9nPgogIDwvZz4KPC9zdmc+Cg==">
 <title>SF E-Plan</title>
 <style>
@@ -582,7 +586,7 @@
 <script type="module">
 "use strict";
 
-const FASSUNG = "v1.37 · 03.09.2026";
+const FASSUNG = "v1.38 · 03.09.2026";
 
 /* ================================================================== */
 /* 1 · Kleinkram                                                       */
