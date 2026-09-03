@@ -2,7 +2,7 @@
 <html lang="de">
 <!--
   SF E-Plan
-  v1.45 · 03.09.2026
+  v1.47 · 03.09.2026
 
   Änderungsliste
   v1.0  Stufe 1: DWG einlesen, Plan dauerhaft ablegen, mehrere Pläne
@@ -258,6 +258,22 @@
         Tastatur stehen lässt und der Tipps neben die Knöpfe legt.
         Außerdem: Reihenfolge der Abgänge auch in der Ausstattung
         änderbar, und "Entfernen" heißt dort jetzt "Abgänge löschen".
+  v1.46 Auch der Abgang ist jetzt ein eigener Bildschirm statt einer
+        Karte mit sechs Knöpfen. Drei Abschnitte: Abgang (Bezeichnung,
+        Art, Hinter RCD), Absicherung (vorgeschaltetes Gerät und
+        Schutzorgan, in der Reihenfolge des Schaltbilds) und
+        Angeschlossen (Verbraucher, mobiler Verteiler oder die beiden
+        Knöpfe zum Anschließen). Jede Zeile führt in ein Fenster mit
+        genau einem Feld, gespeichert wird sofort – kein Übernehmen und
+        kein Verwerfen mehr. Steht kein vorgeschaltetes Gerät, sagt die
+        Zeile das auch, statt es hinter einem Knopf zu verbergen.
+  v1.47 Nachgezogen: Der Verbraucher steht als Abschnitt auf dem
+        Abgangsbildschirm – Bezeichnung und Ort als je eine Zeile, dazu
+        das Entfernen. Ein veralteter Ort steht in der Unterzeile. Und
+        die Zuleitung hat denselben Zuschnitt bekommen: eigener
+        Bildschirm mit Herkunft und Schutzorgan. Das Fenster
+        verbraucherBearbeiten bleibt für den noch freien Abgang, wo es
+        das Anschließen samt Ortswahl in einem Zug erledigt.
 -->
 <head>
 <meta charset="utf-8">
@@ -638,6 +654,26 @@
   <div class="rumpf"><div class="innen" id="bInhalt"></div></div>
 </div>
 
+<!-- ======================= Zuleitung ======================= -->
+<div class="schirm" id="schirmZul">
+  <div class="kopf">
+    <button id="zulZurueck" aria-label="Zurück">&#8592;</button>
+    <span class="titel">Zuleitung</span>
+    <span class="platz"></span>
+  </div>
+  <div class="rumpf"><div class="innen" id="zulInhalt"></div></div>
+</div>
+
+<!-- ======================= Ein Abgang ======================= -->
+<div class="schirm" id="schirmAbgang">
+  <div class="kopf">
+    <button id="abZurueck" aria-label="Zurück">&#8592;</button>
+    <span class="titel" id="abTitel">Abgang</span>
+    <span class="platz"></span>
+  </div>
+  <div class="rumpf"><div class="innen" id="abInhalt"></div></div>
+</div>
+
 <!-- =============== Ausstattung eines Bestandstyps =============== -->
 <div class="schirm" id="schirmTyp">
   <div class="kopf">
@@ -699,7 +735,7 @@
 <script type="module">
 "use strict";
 
-const FASSUNG = "v1.45 · 03.09.2026";
+const FASSUNG = "v1.47 · 03.09.2026";
 
 /* Ein Fehler in einem Klickhandler bleibt sonst unbemerkt: der Knopf tut
    einfach nichts. Beides – geworfene Fehler und gescheiterte Versprechen –
@@ -2950,7 +2986,7 @@ function uvZeichnen(){
     ziel.appendChild(zeile({
       oben: UV.zuleitung.herkunft || "Herkunft nicht angegeben",
       unten: sicherungText(UV.zuleitung.sicherung),
-      beiKlick: zuleitungBearbeiten,
+      beiKlick: zuleitungOeffnen,
     }));
   }
 
@@ -2975,7 +3011,7 @@ function uvZeichnen(){
       nr: i + 1,
       oben: (a.name || a.art) + " — " + verbraucherText(a),
       unten: [a.art, kettenText(a)].filter(Boolean).join(" · "),
-      beiKlick: () => abgangBearbeiten(a),
+      beiKlick: () => abgangOeffnen(a),
       sortier: sortModus ? {
         auf: nachbarInGruppe(i, -1) >= 0,
         ab:  nachbarInGruppe(i, +1) >= 0,
@@ -3011,23 +3047,56 @@ function uvZeichnen(){
 }
 
 /* --- Zuleitung --- */
-async function zuleitungBearbeiten(){
-  const a = await formular({
-    titel: "Zuleitung",
-    felder: [{ art:"text", name:"herkunft", beschriftung:"Herkunft",
-               wert: UV.zuleitung.herkunft, platzhalter:"z. B. HV Halle 2, Abgang 4" }],
-    knoepfe: [{ text:"Absicherung ändern", wert:"sicherung" },
-              { text:"Übernehmen", wert:"ok", art:"leer" },
-              { text:"Abbrechen", wert:null, art:"leer" }],
-  });
-  if (!a.wahl) return;
-  UV.zuleitung.herkunft = a.werte.herkunft.trim();
-  if (a.wahl === "sicherung"){
-    const s = await sicherungWaehlen(UV.zuleitung.sicherung, "Absicherung der Zuleitung");
-    if (s) UV.zuleitung.sicherung = s;
-  }
-  await merken();
+/* Die Zuleitung ist derselbe Fall wie ein Abgang, nur mit weniger
+   Feldern: eigener Bildschirm, Zeilen mit je einem Feld dahinter. */
+function zuleitungOeffnen(){
+  zuleitungZeichnen();
+  schirmZeigen("schirmZul");
+}
+
+$("zulZurueck").addEventListener("click", () => {
+  schirmZeigen("schirmUV");
   uvZeichnen();
+});
+
+async function zuleitungGeaendert(){
+  await merken();
+  zuleitungZeichnen();
+}
+
+function zuleitungZeichnen(){
+  const ziel = $("zulInhalt");
+  ziel.innerHTML = "";
+  const z = UV.zuleitung;
+
+  const h1 = document.createElement("h2"); h1.textContent = "Herkunft"; ziel.appendChild(h1);
+  ziel.appendChild(zeile({
+    oben: z.herkunft || "nicht angegeben",
+    unten: "Woher der Verteiler gespeist wird",
+    beiKlick: async () => {
+      const a = await formular({
+        titel: "Herkunft",
+        felder: [{ art:"text", name:"herkunft", beschriftung:"Herkunft", wert:z.herkunft,
+                   platzhalter:"z. B. HV Halle 2, Abgang 4" }],
+        knoepfe: [{ text:"Übernehmen", wert:true }, { text:"Abbrechen", wert:false, art:"leer" }],
+      });
+      if (!a.wahl) return;
+      z.herkunft = a.werte.herkunft.trim();
+      await zuleitungGeaendert();
+    },
+  }));
+
+  const h2 = document.createElement("h2"); h2.textContent = "Absicherung"; ziel.appendChild(h2);
+  ziel.appendChild(zeile({
+    oben: sicherungText(z.sicherung),
+    unten: "Schutzorgan der Zuleitung",
+    beiKlick: async () => {
+      const s = await sicherungWaehlen(z.sicherung, "Absicherung der Zuleitung");
+      if (!s) return;
+      z.sicherung = s;
+      await zuleitungGeaendert();
+    },
+  }));
 }
 
 /* --- RCD-Gruppen --- */
@@ -3258,32 +3327,180 @@ async function abgaengeHinzufuegen(rcdVorgabe){
   uvZeichnen();
 }
 
-async function abgangBearbeiten(ab){
-  const nr = UV.abgaenge.indexOf(ab) + 1;
-  const a = await formular({
-    titel: "Abgang " + nr,
-    text: kettenText(ab),
-    felder: [
-      { art:"text", name:"name", beschriftung:"Bezeichnung", wert:ab.name, platzhalter:"frei lassen für die Art" },
-      { art:"wahl", name:"art", beschriftung:"Art", wert:ab.art,
-        optionen: ABGANGSARTEN.map(x => ({ wert:x, text:x })) },
-      { art:"wahl", name:"rcd", beschriftung:"Hinter RCD", wert:ab.rcd || "", optionen: rcdOptionen() },
-    ],
-    knoepfe: [{ text:"Übernehmen", wert:"ok" },
-              ...(ab.mobil
-                ? [{ text:"Mobilen Verteiler öffnen", wert:"mobiloeffnen", art:"leer" },
-                   { text:"Mobilen Verteiler abhängen", wert:"mobilweg", art:"gefahr" }]
-                : ab.verbraucher
-                  ? [{ text:"Verbraucher bearbeiten", wert:"verbraucher", art:"leer" }]
-                  : [{ text:"Verbraucher anschließen", wert:"verbraucher", art:"leer" },
-                     { text:"Mobilen Verteiler anschließen", wert:"mobil", art:"leer" }]),
-              { text:"Absicherung ändern", wert:"sicherung", art:"leer" },
-              { text:"Vorgeschaltetes Gerät", wert:"vor", art:"leer" },
-              { text:"Abgang löschen", wert:"weg", art:"gefahr" },
-              { text:"Abbrechen", wert:null, art:"leer" }],
-  });
-  if (!a.wahl) return;
-  if (a.wahl === "weg"){
+/* Eigener Bildschirm statt einer Karte mit sechs Knöpfen. Jede Zeile
+   führt in ein Fenster mit genau einem Feld; gespeichert wird sofort,
+   der Zurück-Pfeil genügt. */
+
+let ABG = null;
+
+function abgangOeffnen(ab){
+  ABG = ab;
+  abgangSchirmZeichnen();
+  schirmZeigen("schirmAbgang");
+}
+
+$("abZurueck").addEventListener("click", () => {
+  ABG = null;
+  schirmZeigen("schirmUV");
+  uvZeichnen();
+});
+
+const abgangNr = (ab) => UV.abgaenge.indexOf(ab) + 1;
+
+async function abgangGeaendert(){
+  await merken();
+  abgangSchirmZeichnen();
+}
+
+function abgangSchirmZeichnen(){
+  const ziel = $("abInhalt");
+  const ab = ABG;
+  if (!ab) return;
+  ziel.innerHTML = "";
+  $("abTitel").textContent = "Abgang " + abgangNr(ab);
+
+  /* --- Abgang --- */
+  const h1 = document.createElement("h2"); h1.textContent = "Abgang"; ziel.appendChild(h1);
+  ziel.appendChild(zeile({
+    oben: ab.name || "ohne Bezeichnung",
+    unten: "Bezeichnung",
+    beiKlick: async () => {
+      const a = await formular({
+        titel: "Bezeichnung",
+        text: "Frei lassen, dann steht im Plan die Art des Abgangs.",
+        felder: [{ art:"text", name:"name", beschriftung:"Bezeichnung", wert:ab.name,
+                   platzhalter:"z. B. Podest" }],
+        knoepfe: [{ text:"Übernehmen", wert:true }, { text:"Abbrechen", wert:false, art:"leer" }],
+      });
+      if (!a.wahl) return;
+      ab.name = a.werte.name.trim();
+      await abgangGeaendert();
+    },
+  }));
+  ziel.appendChild(zeile({
+    oben: ab.art,
+    unten: "Art",
+    beiKlick: async () => {
+      const a = await formular({
+        titel: "Art des Abgangs",
+        felder: [{ art:"wahl", name:"art", beschriftung:"Art", wert:ab.art,
+                   optionen: ABGANGSARTEN.map(x => ({ wert:x, text:x })) }],
+        knoepfe: [{ text:"Übernehmen", wert:true }, { text:"Abbrechen", wert:false, art:"leer" }],
+      });
+      if (!a.wahl) return;
+      ab.art = a.werte.art;
+      await abgangGeaendert();
+    },
+  }));
+  if (UV.rcds.length){
+    const r = UV.rcds.find(x => x.id === ab.rcd);
+    ziel.appendChild(zeile({
+      oben: r ? r.name : "kein RCD",
+      unten: "Hinter RCD",
+      beiKlick: async () => {
+        const a = await formular({
+          titel: "Hinter RCD",
+          felder: [{ art:"wahl", name:"rcd", beschriftung:"Gruppe", wert:ab.rcd || "",
+                     optionen: rcdOptionen() }],
+          knoepfe: [{ text:"Übernehmen", wert:true }, { text:"Abbrechen", wert:false, art:"leer" }],
+        });
+        if (!a.wahl) return;
+        ab.rcd = a.werte.rcd || null;
+        await abgangGeaendert();
+      },
+    }));
+  }
+
+  /* --- Absicherung, in der Reihenfolge des Schaltbilds --- */
+  const h2 = document.createElement("h2"); h2.textContent = "Absicherung"; ziel.appendChild(h2);
+  ziel.appendChild(zeile({
+    oben: hatGeraet(ab.vor) ? sicherungText(ab.vor) : "kein vorgeschaltetes Gerät",
+    unten: "Vorgeschaltet",
+    beiKlick: async () => {
+      const s = await sicherungWaehlen(ab.vor || { art:"FI", kennlinie:null, strom:40, ma:30 },
+                                       "Vorgeschaltet vor Abgang " + abgangNr(ab));
+      if (!s) return;
+      ab.vor = hatGeraet(s) ? s : null;
+      await abgangGeaendert();
+    },
+  }));
+  ziel.appendChild(zeile({
+    oben: sicherungText(ab.sicherung),
+    unten: "Schutzorgan des Abgangs",
+    beiKlick: async () => {
+      const s = await sicherungWaehlen(ab.sicherung, "Absicherung des Abgangs");
+      if (!s) return;
+      ab.sicherung = s;
+      await abgangGeaendert();
+    },
+  }));
+
+  /* --- Was daran hängt --- */
+  const h3 = document.createElement("h2"); h3.textContent = "Angeschlossen"; ziel.appendChild(h3);
+  if (ab.mobil){
+    const m = verteilerListe().find(v => v.id === ab.mobil);
+    ziel.appendChild(zeile({
+      oben: m ? m.name : "Verteiler nicht mehr vorhanden",
+      unten: "Mobiler Verteiler · öffnen",
+      beiKlick: async () => {
+        await merken();
+        if (m){ ABG = null; uvOeffnen(m); }
+      },
+    }));
+    knopfIn(ziel, "Mobilen Verteiler abhängen", async () => {
+      if (await mobilAbhaengen(ab)) await abgangGeaendert();
+    }, "gefahr");
+  } else if (ab.verbraucher){
+    const v = ab.verbraucher;
+    ziel.appendChild(zeile({
+      oben: v.name || "ohne Bezeichnung",
+      unten: "Verbraucher",
+      beiKlick: async () => {
+        const a = await formular({
+          titel: "Verbraucher",
+          felder: [{ art:"text", name:"name", beschriftung:"Bezeichnung", wert:v.name,
+                     platzhalter:"z. B. Kreissäge, Bauwagen" }],
+          knoepfe: [{ text:"Übernehmen", wert:true }, { text:"Abbrechen", wert:false, art:"leer" }],
+        });
+        if (!a.wahl) return;
+        v.name = a.werte.name.trim();
+        await abgangGeaendert();
+      },
+    }));
+    ziel.appendChild(zeile({
+      oben: v.standnummer ? "Standort " + v.standnummer
+                          : (v.x !== null && v.x !== undefined ? "frei im Plan gesetzt" : "kein Ort gesetzt"),
+      unten: v.ortVeraltet ? "Ort · der Standort hat sich geändert" : "Ort im Plan",
+      beiKlick: async () => { await merken(); ABG = null; ortWahlStarten(UV.id, ab.id); },
+    }));
+    knopfIn(ziel, "Verbraucher entfernen", async () => {
+      const b = await frage({
+        titel: "Verbraucher entfernen",
+        text: (v.name || "Der Verbraucher") + " wird entfernt, der Abgang wird wieder frei.",
+        knoepfe: [{ text:"Entfernen", wert:true, art:"gefahr" },
+                  { text:"Behalten", wert:false, art:"leer" }],
+      });
+      if (!b.wahl) return;
+      ab.verbraucher = null;
+      await abgangGeaendert();
+    }, "gefahr");
+  } else {
+    platzhalterIn(ziel, "Der Abgang ist frei.");
+    knopfIn(ziel, "Verbraucher anschließen", async () => {
+      await merken();
+      const erg = await verbraucherBearbeiten(ab);
+      if (erg === "gewechselt") ABG = null;
+      else await abgangGeaendert();
+    }, "leer");
+    knopfIn(ziel, "Mobilen Verteiler anschließen", async () => {
+      await merken();
+      const erg = await mobilAnschliessen(ab);
+      if (erg !== "gewechselt") await abgangGeaendert();
+    }, "leer");
+  }
+
+  knopfIn(ziel, "Abgang löschen", async () => {
+    const nr = abgangNr(ab);
     const b = await frage({
       titel: "Abgang löschen",
       text: ab.mobil
@@ -3296,53 +3513,32 @@ async function abgangBearbeiten(ab){
     if (!b.wahl) return;
     if (ab.mobil) mobilEntfernen(ab.mobil);
     UV.abgaenge = UV.abgaenge.filter(x => x.id !== ab.id);
-  } else {
-    ab.name = a.werte.name.trim();
-    ab.art = a.werte.art;
-    ab.rcd = a.werte.rcd || null;
-    if (a.wahl === "sicherung"){
-      const s = await sicherungWaehlen(ab.sicherung, "Absicherung des Abgangs");
-      if (s) ab.sicherung = s;
-    }
-    if (a.wahl === "vor"){
-      const s = await sicherungWaehlen(ab.vor || { art:"FI", kennlinie:null, strom:40, ma:30 },
-                                       "Vorgeschaltet vor Abgang " + nr);
-      if (s) ab.vor = hatGeraet(s) ? s : null;
-    }
-    if (a.wahl === "verbraucher"){
-      await merken();
-      const erg = await verbraucherBearbeiten(ab);
-      if (erg === "gewechselt") return;   // die Ortswahl übernimmt
-    }
-    if (a.wahl === "mobil"){
-      await merken();
-      const erg = await mobilAnschliessen(ab);
-      if (erg === "gewechselt") return;
-    }
-    if (a.wahl === "mobiloeffnen"){
-      await merken();
-      const m = verteilerListe().find(v => v.id === ab.mobil);
-      if (m) return uvOeffnen(m);
-    }
-    if (a.wahl === "mobilweg"){
-      const zahlen = haengtDaran(ab.mobil);
-      const m = verteilerListe().find(v => v.id === ab.mobil);
-      const anhang = [];
-      if (zahlen.verteiler) anhang.push(zahlen.verteiler + (zahlen.verteiler === 1 ? " weiterer mobiler Verteiler" : " weitere mobile Verteiler"));
-      if (zahlen.verbraucher) anhang.push(zahlen.verbraucher + (zahlen.verbraucher === 1 ? " Verbraucher" : " Verbraucher"));
-      const b = await frage({
-        titel: "Mobilen Verteiler abhängen",
-        text: (m ? "„" + m.name + "“" : "Der Verteiler") + " wird aus dem Plan entfernt und geht zurück in den Bestand." +
-              (anhang.length ? " Mit entfernt " + (anhang.length > 1 || zahlen.verteiler > 1 || zahlen.verbraucher > 1 ? "werden" : "wird") + ": " + anhang.join(" und ") + "." : ""),
-        knoepfe: [{ text:"Abhängen", wert:true, art:"gefahr" }, { text:"Behalten", wert:false, art:"leer" }],
-      });
-      if (!b.wahl) return;
-      mobilEntfernen(ab.mobil);
-      ab.mobil = null;
-    }
-  }
-  await merken();
-  uvZeichnen();
+    await merken();
+    ABG = null;
+    schirmZeigen("schirmUV");
+    uvZeichnen();
+  }, "gefahr").style.marginTop = "18px";
+}
+
+/* Rückgabe: true, wenn wirklich abgehängt wurde */
+async function mobilAbhaengen(ab){
+  const zahlen = haengtDaran(ab.mobil);
+  const m = verteilerListe().find(v => v.id === ab.mobil);
+  const anhang = [];
+  if (zahlen.verteiler) anhang.push(zahlen.verteiler + (zahlen.verteiler === 1 ? " weiterer mobiler Verteiler" : " weitere mobile Verteiler"));
+  if (zahlen.verbraucher) anhang.push(zahlen.verbraucher + " Verbraucher");
+  const b = await frage({
+    titel: "Mobilen Verteiler abhängen",
+    text: (m ? "„" + m.name + "“" : "Der Verteiler") + " wird aus dem Plan entfernt und geht zurück in den Bestand." +
+          (anhang.length ? " Mit entfernt " +
+            (anhang.length > 1 || zahlen.verteiler > 1 || zahlen.verbraucher > 1 ? "werden" : "wird") +
+            ": " + anhang.join(" und ") + "." : ""),
+    knoepfe: [{ text:"Abhängen", wert:true, art:"gefahr" }, { text:"Behalten", wert:false, art:"leer" }],
+  });
+  if (!b.wahl) return false;
+  mobilEntfernen(ab.mobil);
+  ab.mobil = null;
+  return true;
 }
 
 /* ================================================================== */
