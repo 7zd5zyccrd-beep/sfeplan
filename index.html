@@ -286,6 +286,32 @@
         Koordinaten und dem, was an derselben Stelle wirklich liegt.
         Das Feld nimmt selbst keine Tipps an. An der App ist sonst
         nichts geändert – erst messen, dann berichtigen.
+  v1.49 Gemessen und behoben: der Seitenversatz. Die Anzeige zeigte
+        Sichtfenster 912 hoch gegen eine Seite von 844 und einen Stand
+        von −68. Um diese 68 Punkte lag alles neben seiner Tippfläche;
+        zwei Tipps auf den Zurück-Pfeil trafen die leere Kopfschicht,
+        ein Klick entstand gar nicht erst, und nichts meldete sich.
+        Entstanden ist der Versatz beim Wischen: die Überstreckung am
+        Ende einer Liste wurde an die Seite weitergereicht, die selbst
+        nicht scrollen kann und deshalb auf dem Wert stehen blieb.
+        Zwei Gegenmaßnahmen. Erstens tragen html und body jetzt
+        overflow:hidden, und jeder scrollende Kasten – Rumpf, Schleier,
+        Menüblatt, Suchliste, Farbliste, Betriebsartenleiste – trägt
+        overscroll-behavior:contain, damit nichts mehr durchschlägt.
+        Zweitens ein Wächter, der jeden Versatz der Seite sofort
+        zurücknimmt: beim Scrollen, beim Verschieben des Sichtfensters,
+        nach dem Verlassen eines Eingabefeldes und vor jeder Berührung.
+        Der Versatz des Sichtfensters bleibt unangetastet, der gehört
+        der Tastatur. Die Sonderbehandlung in fensterZu geht darin auf.
+        Jeder Eingriff des Wächters steht im Band der Zustandsanzeige.
+  v1.50 Das rote Fehlerband am unteren Rand ist entfallen. Es hatte bei
+        den Aussetzern nie angeschlagen, weil dort kein Fehler geworfen
+        wurde, sondern ein Wert falsch stand. Gemeldet wird trotzdem
+        weiter: geworfene Fehler und gescheiterte Versprechen landen
+        jetzt in der Zustandsanzeige – mit Uhrzeit im Band der
+        Ereignisse und, damit der letzte nicht wegläuft, zusätzlich in
+        einer eigenen Zeile mit Zähler. Ein Fehler vor dem Aufbau der
+        Anzeige wird nachgetragen.
 -->
 <head>
 <meta charset="utf-8">
@@ -325,7 +351,13 @@
   body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
        touch-action:manipulation}
   input,textarea,select,.fenster p{-webkit-user-select:text;user-select:text}
-  html,body{margin:0;padding:0;height:100%;overscroll-behavior:none}
+  /* Die Seite selbst darf nicht scrollen: alle Bildschirme stehen fest,
+     gescrollt wird nur in den Kästen darin. Ohne overflow:hidden reicht
+     iOS eine Überstreckung aus einem dieser Kästen an die Seite weiter,
+     und die bleibt dann auf einem Versatz stehen, statt zurückzufedern –
+     danach liegen alle Tippflächen neben dem, was zu sehen ist. */
+  html,body{margin:0;padding:0;height:100%;
+            overflow:hidden;overscroll-behavior:none}
   body{
     font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     color:var(--ink);background:var(--grund);
@@ -352,7 +384,8 @@
                font-size:22px;color:var(--ink);flex:0 0 auto}
   .kopf .platz{width:40px}
 
-  .rumpf{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch}
+  .rumpf{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;
+         -webkit-overflow-scrolling:touch}
   .innen{max-width:760px;margin:0 auto;padding:16px 16px calc(24px + env(safe-area-inset-bottom))}
 
   h2{font-size:15px;font-weight:600;margin:22px 0 8px;color:var(--ink-leise)}
@@ -393,7 +426,8 @@
   .fuss{
     flex:0 0 auto;display:flex;gap:6px;padding:8px 10px;
     padding-bottom:calc(8px + env(safe-area-inset-bottom));
-    border-top:1px solid var(--linie);background:var(--grund);overflow-x:auto;
+    border-top:1px solid var(--linie);background:var(--grund);
+    overflow-x:auto;overscroll-behavior:contain;
   }
   /* Leisten der Betriebsarten liegen über der Zeichnung, statt Platz zu nehmen. */
   .fuss.schwebend{
@@ -456,7 +490,7 @@
   #menueBlatt{
     width:100%;max-width:520px;background:var(--grund);
     border-radius:20px 20px 0 0;padding:8px 14px calc(18px + env(safe-area-inset-bottom));
-    max-height:80vh;overflow:auto;
+    max-height:80vh;overflow:auto;overscroll-behavior:contain;
   }
   .griff{width:38px;height:4px;border-radius:2px;background:var(--linie);margin:4px auto 12px}
   #menueInhalt .zeile{margin-bottom:8px}
@@ -480,7 +514,8 @@
   }
   .suchkopf input:focus{outline:none;border-color:var(--akzent)}
   .suchkopf button{padding:12px 6px;color:var(--akzent);font-weight:600;flex:0 0 auto}
-  .suchliste{flex:1;overflow:auto;padding:12px 12px calc(24px + env(safe-area-inset-bottom))}
+  .suchliste{flex:1;overflow:auto;overscroll-behavior:contain;
+             padding:12px 12px calc(24px + env(safe-area-inset-bottom))}
   .suchliste .zeile{max-width:760px;margin-left:auto;margin-right:auto}
   .marke{
     flex:0 0 auto;font-size:11px;font-weight:700;letter-spacing:.04em;
@@ -497,7 +532,7 @@
   #schleier{
     position:fixed;inset:0;background:rgba(27,36,48,.45);
     display:none;padding:20px;z-index:50;
-    overflow-y:auto;-webkit-overflow-scrolling:touch;
+    overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
   }
   #schleier.an{display:block}
   #schleier .mitte{
@@ -569,17 +604,9 @@
   .hakenzeile .haupt{flex:1;min-width:0}
   .hakenzeile .oben{display:block;font-weight:600}
   .hakenzeile .unten{display:block;font-size:13px;color:var(--ink-leise);margin-top:2px}
-  /* Meldet Fehler, die sonst still einen Knopf lahmlegen würden.
-     Antippen blendet das Band wieder aus. */
-  #fehlerband{
-    position:fixed;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));
-    z-index:200;background:#B3261E;color:#fff;padding:11px 13px;border-radius:12px;
-    font-size:13px;line-height:1.35;box-shadow:0 6px 20px rgba(27,36,48,.3);
-    word-break:break-word;
-  }
   /* Zeigt die inneren Werte, während gearbeitet wird. Nimmt selbst keine
      Tipps an, sonst würde sie genau das verfälschen, was sie messen soll.
-     Sie liegt unter dem Fehlerband und über allem anderen. */
+     Sie liegt über allem anderen. */
   #zustand{
     position:fixed;z-index:150;pointer-events:none;
     top:calc(62px + env(safe-area-inset-top));left:6px;right:6px;
@@ -597,7 +624,8 @@
     font:inherit;color:var(--ink);background:var(--grund);appearance:none;
   }
   .fenster select:focus{outline:none;border-color:var(--akzent)}
-  .farbliste{max-height:46vh;overflow:auto;margin-top:10px;border:1px solid var(--linie);border-radius:var(--radius)}
+  .farbliste{max-height:46vh;overflow:auto;overscroll-behavior:contain;
+             margin-top:10px;border:1px solid var(--linie);border-radius:var(--radius)}
   .farbzeile{
     display:flex;align-items:center;gap:12px;width:100%;
     padding:11px 14px;border-bottom:1px solid var(--linie);text-align:left;
@@ -764,20 +792,20 @@
 <script type="module">
 "use strict";
 
-const FASSUNG = "v1.48 · 03.09.2026";
+const FASSUNG = "v1.50 · 03.09.2026";
 
 /* Ein Fehler in einem Klickhandler bleibt sonst unbemerkt: der Knopf tut
    einfach nichts. Beides – geworfene Fehler und gescheiterte Versprechen –
-   landet deshalb sichtbar in einem Band am unteren Rand. */
+   wird deshalb festgehalten. Das rote Band am unteren Rand ist entfallen;
+   die Meldung steht jetzt in der Zustandsanzeige, in ihrer eigenen Zeile
+   und mit Uhrzeit im Band der Ereignisse. Der letzte Fehler bleibt dabei
+   erhalten, auch wenn die Anzeige erst später eingeschaltet wird. */
+let fehlerZahl = 0, letzterFehler = "";
+let zustandBereit = false;      // erst danach lässt sich ins Band schreiben
 function fehlerMelden(text){
-  let k = document.getElementById("fehlerband");
-  if (!k){
-    k = document.createElement("div");
-    k.id = "fehlerband";
-    k.addEventListener("click", () => k.remove());
-    document.body.appendChild(k);
-  }
-  k.textContent = text;
+  fehlerZahl++;
+  letzterFehler = String(text).slice(0, 160);
+  if (zustandBereit) bandZeile("⚠ " + letzterFehler);
 }
 window.addEventListener("error", ev => {
   const wo = ev.lineno ? " (Zeile " + ev.lineno + ")" : "";
@@ -807,12 +835,11 @@ const naechsterRahmen = () => new Promise(r => requestAnimationFrame(() => r()))
 function arbeitAn(text){ $("arbeitText").textContent = text; $("arbeit").classList.add("an"); }
 function arbeitAus(){ $("arbeit").classList.remove("an"); }
 
-/* Fenster schließen. Der Rücksprung auf null fängt einen Rest ab, den
-   iOS nach dem Schließen der Tastatur gelegentlich stehen lässt: die
-   Seite bleibt dann verschoben, und Tipps landen neben den Knöpfen. */
+/* Fenster schließen. Den Versatz, den iOS nach der Tastatur gelegentlich
+   stehen lässt, nimmt jetzt der Wächter zurück (Abschnitt 15). */
 function fensterZu(){
   $("schleier").classList.remove("an");
-  if (window.scrollY || window.scrollX) window.scrollTo(0, 0);
+  seiteZurueck("Fenster");
 }
 
 /* Abfragen laufen über ein eigenes Fenster, nicht über Systemdialoge. */
@@ -5279,7 +5306,7 @@ function zustandZeilen(){
   const modus = verteilerModus ? "Verteiler" : zuschneiden ? "Zuschnitt"
               : ortWahl ? "Ortwahl" : "–";
 
-  return [
+  const zeilen = [
     FASSUNG + " · " + (schirm ? schirm.id : "kein Schirm") +
       " · Deckel " + (deckel.length ? deckel.join("+") : "–"),
     "Geste zieht=" + (zieht?1:0) + " bewegt=" + (bewegt?1:0) +
@@ -5295,6 +5322,7 @@ function zustandZeilen(){
       " Rahmen " + Math.round(rahmen.width) + "×" + Math.round(rahmen.height) +
       " dpr " + (window.devicePixelRatio || 1),
     "Seite " + Math.round(window.scrollX) + "," + Math.round(window.scrollY) +
+      " behoben " + versatzZaehler +
       (vv ? " · Sichtfenster " + Math.round(vv.width) + "×" + Math.round(vv.height) +
             " top=" + Math.round(vv.offsetTop) + " z=" + vv.scale.toFixed(2) : ""),
     "Zahnrad " + Math.round(zr.left) + "," + Math.round(zr.top) +
@@ -5306,6 +5334,8 @@ function zustandZeilen(){
     "Bilder Plan " + planJeSek + "/s Fläche " + flaecheJeSek + "/s" +
       " · Auftrag " + (zeichenAuftrag ? 1 : 0) + " · Tippuhr " + (tippUhr ? 1 : 0),
   ];
+  if (fehlerZahl) zeilen.push("Fehler " + fehlerZahl + " · zuletzt: " + letzterFehler);
+  return zeilen;
 }
 
 function zustandMalen(){
@@ -5344,6 +5374,60 @@ function zustandSchalten(an, merken){
   }
   if (merken !== false) zustandSpeichern(ZUSTAND_AN);
 }
+
+/* Ab hier steht das Band bereit. Ein Fehler, der schon vorher aufgetreten
+   ist, wird einmal nachgetragen. */
+zustandBereit = true;
+if (fehlerZahl) bandZeile("⚠ " + letzterFehler);
+
+/* ================================================================== */
+/* 15 · Wächter gegen den Seitenversatz                                */
+/* ================================================================== */
+
+/* Gemessen am 03.09.2026: Sichtfenster 912 hoch, Seite 844, Versatz
+   −68. Alles lag um diese 68 Punkte neben seiner Tippfläche, jeder
+   Knopf war tot, und kein Fehler meldete sich. Die Seite darf nie
+   verschoben stehen – sie kann gar nichts anzeigen, was durch Scrollen
+   erreichbar wäre. Also wird jeder Versatz sofort zurückgenommen, egal
+   woher er kommt. Das Sichtfenster selbst bleibt unberührt: dessen
+   Versatz gehört der Tastatur und ist gewollt. */
+
+let versatzZaehler = 0;
+
+function seiteZurueck(woher){
+  const sx = Math.round(window.scrollX || 0), sy = Math.round(window.scrollY || 0);
+  if (!sx && !sy) return false;
+  window.scrollTo(0, 0);
+  versatzZaehler++;
+  if (ZUSTAND_AN){
+    const vv = window.visualViewport;
+    bandZeile("⚑ Versatz " + woher + " " + sx + "," + sy +
+              (vv ? " vv top=" + Math.round(vv.offsetTop) : "") +
+              " → " + Math.round(window.scrollX) + "," + Math.round(window.scrollY));
+  }
+  return true;
+}
+
+/* Die Seite scrollt: der einzige Anlass, bei dem der Versatz überhaupt
+   entsteht. Innere Kästen sind hier nicht gemeint. */
+window.addEventListener("scroll", ev => {
+  const z = ev.target;
+  if (z === document || z === document.documentElement || z === document.body || z === window)
+    seiteZurueck("Scrollen");
+}, true);
+
+/* Die Tastatur geht auf oder zu, das Sichtfenster verschiebt sich. */
+if (window.visualViewport){
+  window.visualViewport.addEventListener("scroll", () => seiteZurueck("Sichtfenster"));
+  window.visualViewport.addEventListener("resize", () => seiteZurueck("Sichtfenster"));
+}
+
+/* Ein Eingabefeld gibt die Schreibmarke ab. */
+window.addEventListener("focusout", () => setTimeout(() => seiteZurueck("Eingabe"), 120), true);
+
+/* Letzte Sicherung: vor jeder Berührung nachsehen. Bleibt trotz allem
+   ein Versatz stehen, kostet er dann höchstens noch einen Tipp. */
+window.addEventListener("pointerdown", () => seiteZurueck("Berührung"), true);
 
 /* ================================================================== */
 
