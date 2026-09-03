@@ -312,6 +312,19 @@
         Ereignisse und, damit der letzte nicht wegläuft, zusätzlich in
         einer eigenen Zeile mit Zähler. Ein Fehler vor dem Aufbau der
         Anzeige wird nachgetragen.
+  v1.51 Der weiße Streifen unten ist weg. Er war kein Bauteil, sondern
+        unbedeckte Fläche: die Bildschirme hängen an dem Bereich, den
+        die Seite für den Bildschirm hält, und der war 68 Punkte kürzer
+        als das Sichtbare – dieselben 68, um die die Tipps danebenlagen.
+        Ein fester Höhenwert half hier schon einmal nicht (v1.21),
+        deshalb kommt die Höhe jetzt aus dem Sichtfenster, und zwar als
+        der größere Wert aus visualViewport.height und innerHeight. Ist
+        der Bereich der Seite schon richtig, ändert sich nichts; ist er
+        zu kurz, wächst der Bildschirm auf das Sichtbare. Die Tastatur
+        schrumpft nur das Sichtfenster, nicht innerHeight, quetscht also
+        nichts zusammen. Es gilt für alle Bildschirme und ebenso für
+        Schleier, Suche, Menü und Arbeitsanzeige, sonst blieben die
+        hinter dem Rand zurück. Die Leinwand misst danach neu nach.
 -->
 <head>
 <meta charset="utf-8">
@@ -368,8 +381,14 @@
 
   /* ---------- Grundgerüst ---------- */
   /* Fest am Bildschirm statt an einer Höhenangabe: 100dvh liefert auf
-     manchen Geräten einen Rest, der als weißer Streifen stehen bleibt. */
-  .schirm{display:none;flex-direction:column;position:fixed;inset:0;overflow:hidden}
+     manchen Geräten einen Rest, der als weißer Streifen stehen bleibt.
+     inset:0 allein genügt aber nicht – es hängt an dem Bereich, den die
+     Seite für den Bildschirm hält, und der ist auf manchen Geräten
+     kürzer als das, was zu sehen ist. Die Höhe kommt deshalb aus
+     --sicht, gesetzt aus dem Sichtfenster (Abschnitt 16). Solange die
+     nicht steht, gilt die volle Höhe wie bisher. */
+  .schirm{display:none;flex-direction:column;position:fixed;inset:0;
+          height:var(--sicht,100%);overflow:hidden}
   .schirm.an{display:flex}
 
   .kopf{
@@ -483,7 +502,8 @@
 
   /* ---------- Werkzeuge ---------- */
   #menueSchleier{
-    position:fixed;inset:0;background:rgba(27,36,48,.35);z-index:46;
+    position:fixed;inset:0;height:var(--sicht,100%);
+    background:rgba(27,36,48,.35);z-index:46;
     display:flex;align-items:flex-end;justify-content:center;
   }
   #menueSchleier[hidden]{display:none}
@@ -499,7 +519,8 @@
 
   /* ---------- Suche ---------- */
   #suchschirm{
-    position:fixed;inset:0;background:var(--grund);z-index:45;
+    position:fixed;inset:0;height:var(--sicht,100%);
+    background:var(--grund);z-index:45;
     display:flex;flex-direction:column;
     padding-top:env(safe-area-inset-top);
   }
@@ -530,7 +551,8 @@
      mitwächst: So steht das Fenster mittig, solange es passt, und ragt
      doch nie oben aus dem scrollbaren Bereich heraus. */
   #schleier{
-    position:fixed;inset:0;background:rgba(27,36,48,.45);
+    position:fixed;inset:0;height:var(--sicht,100%);
+    background:rgba(27,36,48,.45);
     display:none;padding:20px;z-index:50;
     overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
   }
@@ -640,7 +662,8 @@
 
   /* ---------- Fortschritt ---------- */
   #arbeit{
-    position:fixed;inset:0;background:rgba(255,255,255,.94);z-index:60;
+    position:fixed;inset:0;height:var(--sicht,100%);
+    background:rgba(255,255,255,.94);z-index:60;
     display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;
   }
   #arbeit.an{display:flex}
@@ -792,7 +815,7 @@
 <script type="module">
 "use strict";
 
-const FASSUNG = "v1.50 · 03.09.2026";
+const FASSUNG = "v1.51 · 03.09.2026";
 
 /* Ein Fehler in einem Klickhandler bleibt sonst unbemerkt: der Knopf tut
    einfach nichts. Beides – geworfene Fehler und gescheiterte Versprechen –
@@ -5322,7 +5345,7 @@ function zustandZeilen(){
       " Rahmen " + Math.round(rahmen.width) + "×" + Math.round(rahmen.height) +
       " dpr " + (window.devicePixelRatio || 1),
     "Seite " + Math.round(window.scrollX) + "," + Math.round(window.scrollY) +
-      " behoben " + versatzZaehler +
+      " behoben " + versatzZaehler + " · Schirm " + sichtHoehe +
       (vv ? " · Sichtfenster " + Math.round(vv.width) + "×" + Math.round(vv.height) +
             " top=" + Math.round(vv.offsetTop) + " z=" + vv.scale.toFixed(2) : ""),
     "Zahnrad " + Math.round(zr.left) + "," + Math.round(zr.top) +
@@ -5428,6 +5451,43 @@ window.addEventListener("focusout", () => setTimeout(() => seiteZurueck("Eingabe
 /* Letzte Sicherung: vor jeder Berührung nachsehen. Bleibt trotz allem
    ein Versatz stehen, kostet er dann höchstens noch einen Tipp. */
 window.addEventListener("pointerdown", () => seiteZurueck("Berührung"), true);
+
+/* ================================================================== */
+/* 16 · Sichtbare Höhe                                                 */
+/* ================================================================== */
+
+/* Der weiße Streifen unten. Die Bildschirme hängen an dem Bereich, den
+   die Seite für den Bildschirm hält; der war hier 68 Punkte kürzer als
+   das, was tatsächlich zu sehen ist. Diese 68 Punkte blieben unbedeckt
+   und zeigten den weißen Grund – dieselben 68, um die auch die Tipps
+   danebenlagen.
+
+   Genommen wird der größere der beiden Werte. Ist der Bereich der Seite
+   schon richtig, sind beide gleich und es ändert sich nichts. Ist er zu
+   kurz, gilt die sichtbare Höhe. Und weil die Tastatur nur das
+   Sichtfenster schrumpfen lässt, innerHeight aber nicht, quetscht sie
+   beim Tippen nichts zusammen. */
+
+let sichtHoehe = 0;
+
+function sichtHoeheSetzen(){
+  const vv = window.visualViewport;
+  const h = Math.round(Math.max(vv ? vv.height : 0, window.innerHeight || 0));
+  if (!h || h === sichtHoehe) return;
+  sichtHoehe = h;
+  document.documentElement.style.setProperty("--sicht", h + "px");
+  /* Die Leinwand misst ihren Rahmen selbst nach; sie muss das nach der
+     neuen Höhe tun, nicht davor. */
+  groesseNachfuehren();
+  if (ZUSTAND_AN) bandZeile("▭ Höhe " + h);
+}
+
+if (window.visualViewport)
+  window.visualViewport.addEventListener("resize", sichtHoeheSetzen);
+window.addEventListener("resize", sichtHoeheSetzen);
+window.addEventListener("orientationchange", () => setTimeout(sichtHoeheSetzen, 120));
+
+sichtHoeheSetzen();
 
 /* ================================================================== */
 
