@@ -1,0 +1,27 @@
+# Sicherungs-, Weitergabe- und Ausgabedateien der Apps.
+# Sie enthalten echte Objektdaten (Adressen, Wohnungen, Messwerte,
+# Zaehlerstaende, Grundrisse) und duerfen nie ins Repository geraten.
+# Was einmal committet ist, bleibt in der Versionsgeschichte -
+# auch nach dem Loeschen.
+
+*.json
+*.pdf
+
+# Bilder: Fotos, Grundrisse, exportierte Blaetter
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.bmp
+*.heic
+*.heif
+*.tif
+*.tiff
+*.svg
+
+# Ausnahme: SF E-Plan holt sein Home-Bildschirm-Symbol aus einer
+# PNG-Datei neben index.html. Sie MUSS mit ins Repository.
+!apple-touch-icon.png
+
+# Weitere Ausnahmen nach demselben Muster eintragen.
