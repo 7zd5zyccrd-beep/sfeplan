@@ -5957,7 +5957,7 @@ async function werkzeugRechnen(){
 
 /* ---- Der Start ---- */
 (function zugangPruefen(){
-  const hinterlegt = !!(ZUGANG.salz && ZUGANG.pruef);
+const ZUGANG = { salz:'f0e042144336977432c9412a04d47fbd', pruef:'598f9b468f9ad49c4702897c0d169cf6b9398f6af499c106da2e1ebb2e3cef39' };
 
   /* Ohne crypto.subtle lässt sich nichts prüfen. Dann bleibt die App zu
      und sagt, warum – nicht still aufmachen. */
