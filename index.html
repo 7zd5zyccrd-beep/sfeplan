@@ -345,12 +345,30 @@
         bei overscroll-behavior:contain in den scrollenden Kästen und
         beim Wächter. Aus der Probe übernommen: die Bildschirme haben
         jetzt einen eigenen Grund. Die Farben sind wieder raus.
+  v1.54 Der weiße Rand war ein Loch oben, kein Rand unten. Beleg aus der
+        Anzeige: Gerät 912, Fenster 844, und der Zahnrad-Knopf stand bei
+        80 statt bei 12 – der obere Sicherheitsabstand betrug also 68,
+        genau die fehlenden 68. Die Ansicht saß unter der Statusleiste,
+        war aber nicht mit gewachsen; unten blieb der Rest übrig, und
+        die Knöpfe wurden zusätzlich um dieselben 68 nach unten gerückt.
+        Ursache war black-translucent in den Kopfangaben, das steht
+        jetzt auf default. Damit sitzt die Ansicht unter der
+        Statusleiste, reicht bis zum unteren Rand, und der obere
+        Sicherheitsabstand wird von selbst 0. Neuanlegen des Symbols auf
+        dem Home-Bildschirm half nicht, im Rechnerbrowser trat es nie
+        auf. Preis: oben liegt die Statusleiste mit Uhrzeit und Akku auf
+        weißem Grund statt auf der Zeichnung.
 -->
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<!-- Nicht black-translucent. Damit reicht die Ansicht unter die
+     Statusleiste, iOS rückt sie nach oben – vergrößert sie aber nicht:
+     Fenster 844 bei einem Gerät von 912, unten bleiben 68 Punkte übrig,
+     die der Seite nicht gehören und weiß bleiben. Mit "default" setzt
+     iOS die Ansicht unter die Statusleiste und sie reicht bis unten. -->
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="SF E-Plan">
 <meta name="theme-color" content="#1B2430">
 <!-- Symbol für den Home-Bildschirm: iOS nimmt dafür nur PNG, deshalb liegt
@@ -839,7 +857,7 @@
 <script type="module">
 "use strict";
 
-const FASSUNG = "v1.53 · 03.09.2026";
+const FASSUNG = "v1.54 · 03.09.2026";
 
 /* Ein Fehler in einem Klickhandler bleibt sonst unbemerkt: der Knopf tut
    einfach nichts. Beides – geworfene Fehler und gescheiterte Versprechen –
