@@ -1041,7 +1041,7 @@ const FASSUNG = "v1.57 · 04.09.2026";
 
    Ein neues Passwort sperrt alle Geräte wieder zu: sie merken sich den
    Prüfwert und vergleichen ihn beim Start mit dem hier stehenden. */
-const ZUGANG = { salz:'', pruef:'' };
+const ZUGANG = { salz:'f0e042144336977432c9412a04d47fbd', pruef:'598f9b468f9ad49c4702897c0d169cf6b9398f6af499c106da2e1ebb2e3cef39' };
 
 /* Ein Fehler in einem Klickhandler bleibt sonst unbemerkt: der Knopf tut
    einfach nichts. Beides – geworfene Fehler und gescheiterte Versprechen –
@@ -5957,7 +5957,7 @@ async function werkzeugRechnen(){
 
 /* ---- Der Start ---- */
 (function zugangPruefen(){
-const ZUGANG = { salz:'f0e042144336977432c9412a04d47fbd', pruef:'598f9b468f9ad49c4702897c0d169cf6b9398f6af499c106da2e1ebb2e3cef39' };
+  const hinterlegt = !!(ZUGANG.salz && ZUGANG.pruef);
 
   /* Ohne crypto.subtle lässt sich nichts prüfen. Dann bleibt die App zu
      und sagt, warum – nicht still aufmachen. */
