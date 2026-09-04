@@ -358,7 +358,89 @@
         dem Home-Bildschirm half nicht, im Rechnerbrowser trat es nie
         auf. Preis: oben liegt die Statusleiste mit Uhrzeit und Akku auf
         weißem Grund statt auf der Zeichnung.
+  v1.55 Protokoll. Aufgezeichnet wird jetzt immer, unabhängig davon, ob
+        die Zustandsanzeige eingeschaltet ist – dieselben Zeilen wie im
+        Band, dazu alle fünf Sekunden ein Stand der Werte, aber nur wenn
+        er sich geändert hat oder eine Minute alt ist. Behalten werden
+        die letzten zehn Minuten, gedeckelt auf 900 Zeilen. Abgelegt im
+        localStorage und nicht in der Datenbank, weil eine hängende
+        Datenbank-Übertragung selbst auf der Verdächtigenliste steht und
+        ein Protokoll darüber mit einfrieren würde. Zwei Sitzungen
+        bleiben erhalten, die laufende und die davor: nach dem
+        Abschießen der App ist die Aufzeichnung der kaputten Sitzung
+        beim nächsten Start noch da. Herausgeholt wird es über Zahnrad →
+        Protokoll kopieren, in die Zwischenablage, mit Kopfzeile zu
+        Gerät, Fenster und Wurzel. Gesichert wird alle fünf Sekunden
+        sowie beim Verlassen der App.
+  v1.56 Nur Text: die vier offenen Befunde stehen jetzt als Block unter
+        der Änderungsliste, damit der Stand der Fehlersuche die Datei
+        begleitet und nicht am Gesprächsverlauf hängt.
 -->
+
+<!-- ====================== OFFENE BEFUNDE ==========================
+     Vier Stellen, die am 03.09.2026 bei der Suche nach den
+     unregelmäßigen Aussetzern aufgefallen sind. Sie sind ABSICHTLICH
+     NICHT GEÄNDERT: solange die Wirkung von v1.49 bis v1.55 gemessen
+     wird, soll nicht zweierlei gleichzeitig in der Luft sein. Sie
+     erklären den bisher belegten Fall (Seitenversatz, weißer Rand)
+     nicht, sind aber davon unabhängig echt. Fundstellen sind über die
+     Funktionsnamen benannt, nicht über Zeilennummern – die verschieben
+     sich.
+
+  1. Hängende Geste nach langem Drücken.
+     Im gemeinsamen Handler für pointerup/pointercancel/lostpointercapture
+     steht als zweite Zeile:
+         if (langAusgeloest){ langAusgeloest = false;
+                              zeiger.delete(ev.pointerId); return; }
+     Dieser Ausstieg liegt VOR den Zeilen, die zieht und inBewegung
+     zurücksetzen. Nach jedem langen Drücken bleiben also beide auf
+     true. Am iPhone fehlen dadurch die Texte der Zeichnung bis zum
+     nächsten vollständigen Loslassen. Am Rechner ist es schlimmer:
+     pointermove läuft auch ohne gedrückte Taste durch, und weil
+     markiert und ziehZiel noch stehen, klebt das markierte Objekt an
+     der Maus; sicht springt zudem um die Strecke seit dem letzten
+     gemerkten Punkt. Zu prüfen wäre auch, ob der Ausstieg das Speichern
+     einer begonnenen Verschiebung überspringt.
+     Ablesbar im Protokoll: zieht1 bei F0, oder Geister über 0.
+
+  2. Drei Ereignisse teilen sich einen Handler.
+     ["pointerup","pointercancel","lostpointercapture"].forEach(...)
+     Bei jedem Loslassen läuft der Handler zweimal, weil nach pointerup
+     zusätzlich lostpointercapture kommt. Dass die zweite Runde harmlos
+     bleibt, hängt allein daran, dass der Zeiger bereits aus zeiger
+     gelöscht wurde. Kommt lostpointercapture einmal zuerst – beim
+     Abbruch durch das System, beim Verbergen der Leinwand –, wird der
+     Tipp vollständig verschluckt: der erste Durchlauf räumt auf und
+     steigt bei n !== "pointerup" aus, der zweite findet den Zeiger
+     nicht mehr. Auswerten sollte nur pointerup; die beiden anderen
+     sollten ausschließlich aufräumen.
+
+  3. Maßstab kann auf 0 fallen und kommt nicht zurück.
+     groesseSetzen bricht bei einem Rahmen unter 2 Punkten ab, LIEFERT
+     ABER TROTZDEM diesen 0×0-Rahmen zurück. einpassen und anspringen
+     rechnen damit weiter:
+         sicht.m = Math.min(r.width/bw, r.height/bh) * 0.95   → 0
+         basisM  = sicht.m                                     → 0
+     Danach greift vergroesserungBegrenzen nicht mehr (if (!basisM)
+     return), und Zoomen multipliziert 0 mit einem Faktor, bleibt also
+     0. Ergebnis: weißer Plan, alle Verteiler auf einem Punkt, nichts
+     anwählbar – zwei der drei ursprünglich gemeldeten Symptome aus
+     einer Ursache. Herauskommen würde man nur über Einpassen bei
+     sichtbarem Plan. groesseSetzen sollte im Abbruchfall nichts
+     liefern, und die beiden Aufrufer sollten dann abbrechen.
+     Ablesbar im Protokoll: m=0 oder m=NaN.
+
+  4. Trefferfläche der Verteiler.
+     const VERTEILER_SEITE = 20, geprüft wird in verteilerUnter mit
+     Math.max(|dx|,|dy|) <= 20, also ein Feld von 40 × 40 Punkten. Für
+     einen Finger knapp – Fehltipps bleiben still. Für die Berührung
+     wären etwa 26 angemessen, ohne das gezeichnete Quadrat zu ändern.
+
+     Nicht in diese Liste gehört, aber beim Lesen aufgefallen:
+     $("oAb").addEventListener("click", ortWahlBeenden) übergibt das
+     Klick-Ereignis als zielId. Abbrechen während der Ortwahl landet
+     deshalb im Plan statt beim Verteiler.
+================================================================= -->
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
@@ -408,7 +490,7 @@
      grundsätzlich nicht scrollen kann, bekommt vom System weniger
      Fläche, und der Rest bleibt weiß und unbemalbar. Gegen die
      Verkettung reichen overscroll-behavior in den scrollenden Kästen
-     und der Wächter in Abschnitt 15. */
+     und der Wächter in Abschnitt 16. */
   html,body{margin:0;padding:0;height:100%;overscroll-behavior:none}
   /* Die Bildschirme decken selbst ab, statt den Grund durchscheinen zu
      lassen – aufgefallen bei der Farbprobe in v1.52. */
@@ -427,7 +509,7 @@
      inset:0 allein genügt aber nicht – es hängt an dem Bereich, den die
      Seite für den Bildschirm hält, und der ist auf manchen Geräten
      kürzer als das, was zu sehen ist. Die Höhe kommt deshalb aus
-     --sicht, gesetzt aus dem Sichtfenster (Abschnitt 16). Solange die
+     --sicht, gesetzt aus dem Sichtfenster (Abschnitt 17). Solange die
      nicht steht, gilt die volle Höhe wie bisher. */
   .schirm{display:none;flex-direction:column;position:fixed;inset:0;
           height:var(--sicht,100%);overflow:hidden}
@@ -857,7 +939,7 @@
 <script type="module">
 "use strict";
 
-const FASSUNG = "v1.54 · 03.09.2026";
+const FASSUNG = "v1.56 · 04.09.2026";
 
 /* Ein Fehler in einem Klickhandler bleibt sonst unbemerkt: der Knopf tut
    einfach nichts. Beides – geworfene Fehler und gescheiterte Versprechen –
@@ -901,7 +983,7 @@ function arbeitAn(text){ $("arbeitText").textContent = text; $("arbeit").classLi
 function arbeitAus(){ $("arbeit").classList.remove("an"); }
 
 /* Fenster schließen. Den Versatz, den iOS nach der Tastatur gelegentlich
-   stehen lässt, nimmt jetzt der Wächter zurück (Abschnitt 15). */
+   stehen lässt, nimmt jetzt der Wächter zurück (Abschnitt 16). */
 function fensterZu(){
   $("schleier").classList.remove("an");
   seiteZurueck("Fenster");
@@ -4573,6 +4655,9 @@ function menueOeffnen(){
   eintrag("Texte", "Beschriftungen aus der Zeichnung",
     () => { anzeige.text = !anzeige.text; zeichne(); menueOeffnen(); }, anzeige.text);
 
+  eintrag("Protokoll kopieren", "Letzte 10 Minuten in die Zwischenablage",
+    () => { menueSchliessen(); protokollKopieren(); });
+
   eintrag("Zustandsanzeige", "Innere Werte und die letzten Ereignisse",
     () => { zustandSchalten(!ZUSTAND_AN); menueOeffnen(); }, ZUSTAND_AN);
 
@@ -5241,7 +5326,151 @@ $("knopfStand").addEventListener("click", async () => {
 });
 
 /* ================================================================== */
-/* 14 · Zustandsanzeige                                                */
+/* 14 · Protokoll                                                      */
+/* ================================================================== */
+
+/* Eine Anzeige, die man einschalten muss, ist genau dann aus, wenn man
+   sie braucht. Mitgeschrieben wird deshalb immer – dieselben Zeilen,
+   die auch im Band stehen, dazu alle paar Sekunden ein Stand der Werte.
+
+   Abgelegt im localStorage, nicht in der Datenbank: eine hängende
+   Datenbank-Übertragung steht selbst auf der Verdächtigenliste für das
+   Einfrieren, und ein Protokoll, das darüber liefe, würde mit
+   einfrieren. localStorage schreibt sofort und hängt an nichts.
+
+   Zwei Sitzungen werden aufbewahrt. Wird die App nach einem Aussetzer
+   abgeschossen, ist die Aufzeichnung der kaputten Sitzung beim nächsten
+   Start noch da, statt vom frischen Start überschrieben zu werden. */
+
+const PROT_JETZT  = "sfeplan.protokoll";
+const PROT_VORHER = "sfeplan.protokoll.vorher";
+const PROT_DAUER  = 10 * 60 * 1000;   // zehn Minuten
+const PROT_HOECHST = 900;             // Deckel gegen Überlauf
+
+const SITZUNGSSTART = Date.now();
+const protokoll = [];
+let protSchmutzig = false;
+
+/* Die vorige Sitzung beiseitelegen, bevor diese anfängt zu schreiben. */
+try {
+  const alt = localStorage.getItem(PROT_JETZT);
+  if (alt) localStorage.setItem(PROT_VORHER, alt);
+  localStorage.removeItem(PROT_JETZT);
+} catch (e) { /* gesperrt oder voll – das Protokoll ist Beiwerk */ }
+
+function protokollieren(text){
+  const jetzt = Date.now();
+  protokoll.push({ t: jetzt, s: text });
+  const grenze = jetzt - PROT_DAUER;
+  while (protokoll.length && protokoll[0].t < grenze) protokoll.shift();
+  while (protokoll.length > PROT_HOECHST) protokoll.shift();
+  protSchmutzig = true;
+}
+
+function protokollSichern(){
+  if (!protSchmutzig) return;
+  protSchmutzig = false;
+  try {
+    localStorage.setItem(PROT_JETZT,
+      JSON.stringify({ start: SITZUNGSSTART, fassung: FASSUNG, zeilen: protokoll }));
+  } catch (e) { /* voll – lieber verlieren als stören */ }
+}
+
+const protUhr = (ms) => {
+  const d = new Date(ms);
+  return String(d.getHours()).padStart(2,"0") + ":" +
+         String(d.getMinutes()).padStart(2,"0") + ":" +
+         String(d.getSeconds()).padStart(2,"0") + "." +
+         String(Math.floor(d.getMilliseconds()/100));
+};
+
+/* Ein Stand in einer Zeile, damit er zwischen den Ereignissen nicht
+   die Sicht verstellt. */
+function zustandKurz(){
+  const vv = window.visualViewport;
+  return "zieht" + (zieht?1:0) + " bew" + (bewegt?1:0) + " inBew" + (inBewegung?1:0) +
+         " lang" + (langAusgeloest?1:0) + " F" + zeiger.size +
+         " m=" + zahlKurz(sicht.m) + " basis=" + zahlKurz(basisM) +
+         " Seite " + Math.round(window.scrollX) + "," + Math.round(window.scrollY) +
+         " Fenster " + window.innerHeight + (vv ? "/" + Math.round(vv.height) : "") +
+         " Rahmen " + Math.round($("leinwandRahmen").getBoundingClientRect().height) +
+         " Bänder " + zustandZaehler.laufband +
+         " Geister " + zustandZaehler.geister +
+         " Versatz " + versatzZaehler +
+         " Fehler " + fehlerZahl;
+}
+
+function protokollText(){
+  const teile = [];
+  teile.push("SF E-Plan – Protokoll");
+  teile.push(FASSUNG + " · erstellt " + new Date().toLocaleString("de-DE"));
+  teile.push("Gerät " + screen.width + "×" + screen.height +
+             " · Fenster " + window.innerHeight +
+             " · Wurzel " + document.documentElement.clientHeight +
+             " · dpr " + (window.devicePixelRatio || 1));
+  const anhaengen = (roh, titel) => {
+    if (!roh) return;
+    try {
+      const s = JSON.parse(roh);
+      teile.push("", "--- " + titel + ", Beginn " +
+                 new Date(s.start).toLocaleString("de-DE") +
+                 (s.fassung ? " (" + s.fassung + ")" : "") + " ---");
+      (s.zeilen || []).forEach(z => teile.push(protUhr(z.t) + " " + z.s));
+    } catch (e) { teile.push("(" + titel + " unlesbar)"); }
+  };
+  let vorher = null;
+  try { vorher = localStorage.getItem(PROT_VORHER); } catch (e) {}
+  anhaengen(vorher, "vorherige Sitzung");
+  teile.push("", "--- laufende Sitzung, Beginn " +
+             new Date(SITZUNGSSTART).toLocaleString("de-DE") + " ---");
+  protokoll.forEach(z => teile.push(protUhr(z.t) + " " + z.s));
+  return teile.join("\n");
+}
+
+async function protokollKopieren(){
+  protokollSichern();
+  const text = protokollText();
+  const zeilen = text.split("\n").length;
+  let gelungen = false;
+  try {
+    await navigator.clipboard.writeText(text);
+    gelungen = true;
+  } catch (e) {
+    /* Rückfall für den Fall, dass die Zwischenablage sich sperrt. */
+    const feld = document.createElement("textarea");
+    feld.value = text;
+    feld.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+    document.body.appendChild(feld);
+    feld.focus(); feld.setSelectionRange(0, text.length);
+    try { gelungen = document.execCommand("copy"); } catch (e2) {}
+    feld.remove();
+  }
+  hinweis(gelungen ? "Protokoll kopiert" : "Kopieren misslungen",
+    gelungen ? zeilen + " Zeilen liegen in der Zwischenablage. Einfach in eine "
+             + "Nachricht einfügen."
+             : "Die Zwischenablage hat sich gesperrt. Schalte ersatzweise die "
+             + "Zustandsanzeige ein und mach einen Bildschirmabzug.");
+}
+
+/* Alle fünf Sekunden sichern; einen Stand nur dann anhängen, wenn sich
+   etwas geändert hat oder eine Minute vergangen ist. */
+let letzterStand = "", letzterStandZeit = 0;
+setInterval(() => {
+  if (document.visibilityState === "hidden"){ protokollSichern(); return; }
+  const k = zustandKurz();
+  if (k !== letzterStand || Date.now() - letzterStandZeit > 60000){
+    letzterStand = k;
+    letzterStandZeit = Date.now();
+    protokollieren("· " + k);
+  }
+  protokollSichern();
+}, 5000);
+
+window.addEventListener("pagehide", protokollSichern);
+document.addEventListener("visibilitychange", protokollSichern);
+
+/* ================================================================== */
+/* 15 · Zustandsanzeige                                                */
 /* ================================================================== */
 
 /* Die Aussetzer werfen keinen Fehler, deshalb bleibt das Fehlerband
@@ -5287,6 +5516,7 @@ function kurz(el){
 }
 
 function bandZeile(text){
+  protokollieren(text);
   zustandBand.push(zeitText() + " " + text);
   while (zustandBand.length > 6) zustandBand.shift();
   zustandMalen();
@@ -5309,7 +5539,6 @@ function ereignisNotieren(kurzzeichen, ev){
    was nie bei einem Handler der App ankommt. */
 ["pointerdown","pointerup","pointercancel","lostpointercapture","click"].forEach(art => {
   window.addEventListener(art, ev => {
-    if (!ZUSTAND_AN) return;
     if (art === "pointerdown"){
       letzteZeige = { knopf: ev.target && ev.target.closest && ev.target.closest("button"),
                       klick:false };
@@ -5334,13 +5563,12 @@ function ereignisNotieren(kurzzeichen, ev){
 /* Bewegung, obwohl kein Finger aufliegt: der Zustand aus einer früheren
    Geste steht dann noch. Wird nur gezählt, sonst liefe das Band über. */
 window.addEventListener("pointermove", () => {
-  if (ZUSTAND_AN && zieht && zeiger.size === 0) zustandZaehler.geister++;
+  if (zieht && zeiger.size === 0) zustandZaehler.geister++;
 }, true);
 
 /* Nur die Seite selbst, nicht die Listen darin – sonst überschwemmt
    jedes Wischen in einer Liste das Band. */
 window.addEventListener("scroll", ev => {
-  if (!ZUSTAND_AN) return;
   const z = ev.target;
   if (z !== document && z !== document.documentElement && z !== document.body) return;
   bandZeile("↕ Seite " + Math.round(window.scrollX) + "," + Math.round(window.scrollY));
@@ -5348,7 +5576,6 @@ window.addEventListener("scroll", ev => {
 
 if (window.visualViewport)
   window.visualViewport.addEventListener("resize", () => {
-    if (!ZUSTAND_AN) return;
     const v = window.visualViewport;
     bandZeile("⤢ Sichtfenster h=" + Math.round(v.height) +
               " top=" + Math.round(v.offsetTop) + " z=" + v.scale.toFixed(2));
@@ -5447,10 +5674,15 @@ function zustandSchalten(an, merken){
 /* Ab hier steht das Band bereit. Ein Fehler, der schon vorher aufgetreten
    ist, wird einmal nachgetragen. */
 zustandBereit = true;
+protokollieren("▶ Start " + FASSUNG +
+  " · Gerät " + screen.width + "×" + screen.height +
+  " · Fenster " + window.innerHeight +
+  " · Wurzel " + document.documentElement.clientHeight +
+  " · dpr " + (window.devicePixelRatio || 1));
 if (fehlerZahl) bandZeile("⚠ " + letzterFehler);
 
 /* ================================================================== */
-/* 15 · Wächter gegen den Seitenversatz                                */
+/* 16 · Wächter gegen den Seitenversatz                                */
 /* ================================================================== */
 
 /* Gemessen am 03.09.2026: Sichtfenster 912 hoch, Seite 844, Versatz
@@ -5468,12 +5700,10 @@ function seiteZurueck(woher){
   if (!sx && !sy) return false;
   window.scrollTo(0, 0);
   versatzZaehler++;
-  if (ZUSTAND_AN){
-    const vv = window.visualViewport;
-    bandZeile("⚑ Versatz " + woher + " " + sx + "," + sy +
-              (vv ? " vv top=" + Math.round(vv.offsetTop) : "") +
-              " → " + Math.round(window.scrollX) + "," + Math.round(window.scrollY));
-  }
+  const vv = window.visualViewport;
+  bandZeile("⚑ Versatz " + woher + " " + sx + "," + sy +
+            (vv ? " vv top=" + Math.round(vv.offsetTop) : "") +
+            " → " + Math.round(window.scrollX) + "," + Math.round(window.scrollY));
   return true;
 }
 
@@ -5499,7 +5729,7 @@ window.addEventListener("focusout", () => setTimeout(() => seiteZurueck("Eingabe
 window.addEventListener("pointerdown", () => seiteZurueck("Berührung"), true);
 
 /* ================================================================== */
-/* 16 · Sichtbare Höhe                                                 */
+/* 17 · Sichtbare Höhe                                                 */
 /* ================================================================== */
 
 /* Der weiße Streifen unten. Die Bildschirme hängen an dem Bereich, den
@@ -5525,7 +5755,7 @@ function sichtHoeheSetzen(){
   /* Die Leinwand misst ihren Rahmen selbst nach; sie muss das nach der
      neuen Höhe tun, nicht davor. */
   groesseNachfuehren();
-  if (ZUSTAND_AN) bandZeile("▭ Höhe " + h);
+  bandZeile("▭ Höhe " + h);
 }
 
 if (window.visualViewport)
