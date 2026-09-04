@@ -2,7 +2,7 @@
 <html lang="de">
 <!--
   SF E-Plan
-  v1.47 · 03.09.2026
+  v1.57 · 04.09.2026
 
   Änderungsliste
   v1.0  Stufe 1: DWG einlesen, Plan dauerhaft ablegen, mehrere Pläne
@@ -375,6 +375,17 @@
   v1.56 Nur Text: die vier offenen Befunde stehen jetzt als Block unter
         der Änderungsliste, damit der Stand der Fehlersuche die Datei
         begleitet und nicht am Gesprächsverlauf hängt.
+  v1.57 Zugangsabfrage. Die Datei liegt öffentlich; ein Schlossbildschirm
+        hält den ab, der die Adresse zufällig öffnet. Prüfwert über
+        PBKDF2 (SHA-256, 250.000 Runden, eigenes Salz) in der Konstante
+        ZUGANG, ausgeliefert leer – ohne hinterlegtes Passwort bleibt
+        die App zu. Ein Gerät bleibt nach der Eingabe offen, "Gerät
+        sperren" auf dem Startschirm hebt das auf. Werkzeug zum
+        Berechnen des Prüfwerts steht auf dem Schlossbildschirm. Dazu
+        die robots-Zeile im Kopf. Ausdrücklich ein Schild, kein Schloss:
+        wer den Quelltext liest, kommt daran vorbei.
+        Nachgezogen: die Versionszeile im Kopf stand seit v1.48 auf
+        v1.47, während Änderungsliste und FASSUNG weiterliefen.
 -->
 
 <!-- ====================== OFFENE BEFUNDE ==========================
@@ -443,6 +454,7 @@
 ================================================================= -->
 <head>
 <meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <!-- Nicht black-translucent. Damit reicht die Ansicht unter die
@@ -544,6 +556,43 @@
   .knopf.leer{background:transparent;color:var(--ink);border:1px solid var(--linie);font-weight:500}
   .knopf.gefahr{background:transparent;color:var(--warn);border:1px solid var(--linie);font-weight:500}
   .knopf[disabled]{opacity:.45}
+  /* Eine eigene display-Angabe schlägt die eingebaute Regel für [hidden].
+     Ohne diese Zeile stünden ausgeblendete Knöpfe weiter da und täten
+     nichts. */
+  .knopf[hidden]{display:none}
+
+  /* ---------- Schlossbildschirm ---------- */
+  /* Er steht fest im HTML, nicht im Code: sonst blitzt die App beim Laden
+     kurz auf, bevor das Schloss darüberliegt. Nach dem Öffnen wird er aus
+     dem Aufbau genommen und erst dann die App gestartet. */
+  #schloss{
+    position:fixed;inset:0;z-index:900;background:var(--grund);
+    display:flex;flex-direction:column;overflow:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  #schloss[hidden]{display:none}
+  #schloss .innen{
+    max-width:420px;margin:0 auto;width:100%;
+    padding:calc(56px + env(safe-area-inset-top)) 20px
+            calc(28px + env(safe-area-inset-bottom));
+  }
+  #schloss h1{font-size:20px;font-weight:600;margin:0 0 4px}
+  #schloss .leise{margin-bottom:22px}
+  /* 16px, sonst zoomt iOS beim Antippen in das Feld hinein. */
+  #schloss input{
+    width:100%;font-size:16px;padding:13px 14px;border-radius:var(--radius);
+    border:1px solid var(--linie);background:var(--grund);color:var(--ink);
+    margin-bottom:8px;
+  }
+  #schlossFehler{color:var(--warn);font-size:14px;min-height:20px;margin:2px 0 10px}
+  #schlossWerkzeug{margin-top:34px;border-top:1px solid var(--linie);padding-top:18px}
+  #schlossWerkzeug h2{margin:0 0 6px}
+  #schlossZeile{
+    width:100%;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;
+    padding:12px;border-radius:var(--radius);border:1px solid var(--linie);
+    background:var(--flaeche);color:var(--ink);margin:10px 0 8px;
+    min-height:82px;resize:vertical;
+  }
 
   /* ---------- Planliste ---------- */
   .karte{
@@ -815,6 +864,7 @@
     <button class="knopf" id="knopfEinlesen">Plan einlesen</button>
     <button class="knopf leer" id="knopfBestand" style="margin-top:8px">Bestand mobiler Verteiler</button>
     <button class="knopf leer" id="knopfStand" style="margin-top:8px">Stand sichern oder übernehmen</button>
+    <button class="knopf leer" id="knopfSperren" style="margin-top:8px">Gerät sperren</button>
     <p class="leise" style="margin-top:10px">Zeichnung im Format DWG oder DXF. Sie wird auf diesem Gerät verarbeitet und verlässt es nicht.</p>
     <p class="leise" id="fussnote" style="margin-top:22px;text-align:center"></p>
   </div></div>
@@ -936,10 +986,62 @@
 <!-- ======================= Fortschritt ======================= -->
 <div id="arbeit"><div class="rad"></div><div id="arbeitText"></div></div>
 
+<!-- ======================= Schlossbildschirm =======================
+     Er steht hier im HTML und nicht im Code, damit beim Laden nichts von
+     der App aufblitzt. Ein Schild, kein Schloss: wer den Quelltext liest,
+     kommt daran vorbei. Er soll den abhalten, der die Adresse zufällig
+     öffnet. -->
+<div id="schloss">
+  <div class="innen">
+    <h1>SF E-Plan</h1>
+    <p class="leise">Diese Seite ist nicht öffentlich.</p>
+
+    <div id="schlossEingabe">
+      <input id="schlossWort" type="password" inputmode="text"
+             autocomplete="current-password" enterkeyhint="go"
+             placeholder="Passwort" aria-label="Passwort">
+      <div id="schlossFehler"></div>
+      <button class="knopf" id="schlossAuf">Öffnen</button>
+    </div>
+
+    <div id="schlossWerkzeug" hidden>
+      <h2>Prüfwert berechnen</h2>
+      <p class="leise">Passwort eintippen; heraus kommt die Zeile, die in
+        der Datei neben der Versionsangabe stehen muss. Gerechnet wird nur
+        hier im Gerät, verraten wird nichts.</p>
+      <input id="werkWort" type="text" inputmode="text" autocomplete="off"
+             autocapitalize="off" autocorrect="off" spellcheck="false"
+             placeholder="Neues Passwort" aria-label="Neues Passwort">
+      <button class="knopf leer" id="werkRechnen">Zeile erzeugen</button>
+      <textarea id="schlossZeile" readonly hidden
+                aria-label="Zeile zum Einsetzen"></textarea>
+      <button class="knopf leer" id="werkKopieren" hidden>Zeile kopieren</button>
+    </div>
+
+    <button class="knopf leer" id="schlossMehr" style="margin-top:26px">Passwort festlegen</button>
+  </div>
+</div>
+
 <script type="module">
 "use strict";
 
-const FASSUNG = "v1.56 · 04.09.2026";
+const FASSUNG = "v1.57 · 04.09.2026";
+
+/* Zugang. Ein Schild, kein Schloss – wer den Quelltext liest, kommt daran
+   vorbei; es hält den ab, der die Adresse zufällig öffnet.
+
+   pruef ist PBKDF2 über das Passwort: SHA-256, 250.000 Runden, 256 Bit,
+   hexadezimal, mit dem Salz daneben. Keine einfache SHA-256-Prüfsumme –
+   die liesse sich offline in Minuten durchprobieren, das hier dauert
+   Wochen. Das Salz ist je Passwort neu und darf mit in der Datei stehen.
+
+   AUSGELIEFERT WIRD DIE ZEILE LEER. Solange kein Passwort hinterlegt ist,
+   bleibt die App zu; das Festlegen lässt sich dadurch nicht vergessen.
+   Die fertige Zeile liefert das Werkzeug auf dem Schlossbildschirm.
+
+   Ein neues Passwort sperrt alle Geräte wieder zu: sie merken sich den
+   Prüfwert und vergleichen ihn beim Start mit dem hier stehenden. */
+const ZUGANG = { salz:'', pruef:'' };
 
 /* Ein Fehler in einem Klickhandler bleibt sonst unbemerkt: der Knopf tut
    einfach nichts. Beides – geworfene Fehler und gescheiterte Versprechen –
@@ -5766,9 +5868,167 @@ window.addEventListener("orientationchange", () => setTimeout(sichtHoeheSetzen, 
 sichtHoeheSetzen();
 
 /* ================================================================== */
+/* 18 · Zugang                                                         */
+/* ================================================================== */
 
-listeZeichnen();
-zustandHolen().then(an => { if (an) zustandSchalten(true, false); });
+/* Der Schlossbildschirm steht fest im HTML und liegt über allem. Erst
+   wenn er weg ist, startet die App – sonst liefe sie unter dem Schloss
+   schon los und blitzte beim Laden auf. */
+
+const ZUGANG_SCHLUESSEL = "sfeplan.zugang";   /* eigener Name je App:
+   GitHub-Projektseiten liegen alle unter derselben Domain und teilen
+   sich damit den localStorage. */
+
+const alsHex = (bytes) =>
+  Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("");
+
+const hexBytes = (t) => {
+  const a = new Uint8Array(t.length >> 1);
+  for (let i = 0; i < a.length; i++) a[i] = parseInt(t.substr(i * 2, 2), 16);
+  return a;
+};
+
+async function zugangPruefwert(wort, salzHex){
+  const roh = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(wort), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits(
+    { name:"PBKDF2", salt:hexBytes(salzHex), iterations:250000, hash:"SHA-256" },
+    roh, 256);
+  return alsHex(new Uint8Array(bits));
+}
+
+/* Was bisher am Ende der Datei stand. Jetzt hängt es am Schloss. */
+function appStarten(){
+  listeZeichnen();
+  zustandHolen().then(an => { if (an) zustandSchalten(true, false); });
+}
+
+function schlossOeffnen(){
+  const s = $("schloss");
+  if (s) s.remove();
+  appStarten();
+}
+
+async function schlossVersuch(){
+  const feld = $("schlossWort"), knopf = $("schlossAuf");
+  const wort = feld.value;
+  if (!wort) return;
+  $("schlossFehler").textContent = "";
+  knopf.disabled = true; knopf.textContent = "Prüfe…";
+  /* 250.000 Runden dauern spürbar; ohne diese Pause wirkte der Knopf tot. */
+  await new Promise(w => setTimeout(w, 20));
+  try {
+    const wert = await zugangPruefwert(wort, ZUGANG.salz);
+    if (wert === ZUGANG.pruef){
+      /* Gemerkt wird der Prüfwert selbst. Er steht ohnehin in der Datei,
+         verrät also nichts Zusätzliches – und weicht er beim nächsten
+         Start davon ab, ist ein neues Passwort gesetzt und das Gerät
+         wieder zu. */
+      try { localStorage.setItem(ZUGANG_SCHLUESSEL, wert); } catch (e) {}
+      schlossOeffnen();
+      return;
+    }
+    $("schlossFehler").textContent = "Passwort stimmt nicht.";
+    feld.value = ""; feld.focus();
+  } catch (e) {
+    $("schlossFehler").textContent = "Prüfung nicht möglich: " + (e && e.message ? e.message : e);
+  }
+  knopf.disabled = false; knopf.textContent = "Öffnen";
+}
+
+async function werkzeugRechnen(){
+  const feld = $("werkWort"), knopf = $("werkRechnen");
+  const wort = feld.value;
+  if (!wort) return;
+  knopf.disabled = true; knopf.textContent = "Rechne…";
+  await new Promise(w => setTimeout(w, 20));
+  try {
+    const salz = alsHex(crypto.getRandomValues(new Uint8Array(16)));
+    const wert = await zugangPruefwert(wort, salz);
+    const zeile = $("schlossZeile");
+    zeile.value = "const ZUGANG = { salz:'" + salz + "', pruef:'" + wert + "' };";
+    zeile.hidden = false;
+    $("werkKopieren").hidden = false;
+  } catch (e) {
+    $("schlossFehler").textContent = "Rechnen nicht möglich: " + (e && e.message ? e.message : e);
+  }
+  knopf.disabled = false; knopf.textContent = "Zeile erzeugen";
+}
+
+/* ---- Der Start ---- */
+(function zugangPruefen(){
+  const hinterlegt = !!(ZUGANG.salz && ZUGANG.pruef);
+
+  /* Ohne crypto.subtle lässt sich nichts prüfen. Dann bleibt die App zu
+     und sagt, warum – nicht still aufmachen. */
+  if (!window.crypto || !window.crypto.subtle){
+    $("schlossEingabe").hidden = true;
+    $("schlossWerkzeug").hidden = true;
+    $("schlossMehr").hidden = true;
+    const p = document.createElement("p");
+    p.className = "leise";
+    p.textContent = "Diese Seite muss über https:// geöffnet werden. " +
+      "Ohne die Verschlüsselungsfunktionen des Browsers lässt sich das " +
+      "Passwort nicht prüfen.";
+    $("schloss").querySelector(".innen").appendChild(p);
+    return;
+  }
+
+  let gemerkt = null;
+  try { gemerkt = localStorage.getItem(ZUGANG_SCHLUESSEL); } catch (e) {}
+  if (hinterlegt && gemerkt && gemerkt === ZUGANG.pruef){
+    schlossOeffnen();
+    return;
+  }
+
+  /* Noch kein Passwort hinterlegt: das Werkzeug steht offen, das
+     Passwortfeld hat nichts zu prüfen. */
+  if (!hinterlegt){
+    $("schlossEingabe").hidden = true;
+    $("schlossWerkzeug").hidden = false;
+    $("schlossMehr").hidden = true;
+  }
+
+  $("schlossAuf").addEventListener("click", schlossVersuch);
+  $("schlossWort").addEventListener("keydown", (e) => {
+    if (e.key === "Enter"){ e.preventDefault(); schlossVersuch(); }
+  });
+  $("schlossMehr").addEventListener("click", () => {
+    $("schlossWerkzeug").hidden = false;
+    $("schlossMehr").hidden = true;
+    $("werkWort").focus();
+  });
+  $("werkRechnen").addEventListener("click", werkzeugRechnen);
+  $("werkWort").addEventListener("keydown", (e) => {
+    if (e.key === "Enter"){ e.preventDefault(); werkzeugRechnen(); }
+  });
+  $("werkKopieren").addEventListener("click", async () => {
+    const zeile = $("schlossZeile");
+    try {
+      await navigator.clipboard.writeText(zeile.value);
+      $("werkKopieren").textContent = "Kopiert";
+      setTimeout(() => { $("werkKopieren").textContent = "Zeile kopieren"; }, 1600);
+    } catch (e) {
+      zeile.focus(); zeile.select();
+    }
+  });
+})();
+
+/* ---- Gerät sperren ---- */
+$("knopfSperren").addEventListener("click", async () => {
+  const a = await frage({
+    titel: "Gerät sperren",
+    text: "Beim nächsten Öffnen wird das Passwort wieder verlangt. " +
+          "Pläne und Einstellungen auf diesem Gerät bleiben erhalten.",
+    knoepfe: [
+      { text:"Sperren", wert:true, art:"gefahr" },
+      { text:"Abbrechen", wert:false, art:"leer" },
+    ],
+  });
+  if (!a.wahl) return;
+  try { localStorage.removeItem(ZUGANG_SCHLUESSEL); } catch (e) {}
+  location.reload();
+});
 </script>
 </body>
 </html>
