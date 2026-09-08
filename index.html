@@ -2,7 +2,7 @@
 <html lang="de">
 <!--
   SF E-Plan
-  v1.58 · 08.09.2026
+  v1.59 · 08.09.2026
 
   Änderungsliste
   v1.0  Stufe 1: DWG einlesen, Plan dauerhaft ablegen, mehrere Pläne
@@ -403,6 +403,27 @@
         und Messgerät stehen wie der Empfänger im Gerätespeicher und
         sind je Prüfung änderbar. Die Stückzahl am Typ lässt sich nicht
         unter die Zahl der erfassten Geräte senken.
+  v1.59 Zwei Erweiterungen. Erstens tragen die Pfeile im Sortiermodus
+        jetzt über die Gruppengrenze: der oberste Abgang einer
+        RCD-Gruppe verlässt sie nach oben, der unterste Abgang eines
+        Abschnitts rutscht nach unten in die Gruppe darunter. Verschoben
+        wird immer um genau einen Platz in der sichtbaren Folge. Die
+        RCD-Gruppen selbst sind ebenfalls verschiebbar und nehmen ihre
+        Abgänge mit; ihre Reihenfolge ist die Reihenfolge im
+        Schaltbild. Nach jedem Zug wird die Liste in die sichtbare
+        Folge gebracht, damit die Nummern von oben nach unten
+        durchlaufen. Gilt in der Verteileransicht und in der
+        Ausstattung.
+        Zweitens gehören die FI/LS zur RCD-Prüfung: jedes Stück bekommt
+        seine eigene Zeile mit Auslösestrom, Auslösezeit und Prüftaste.
+        Die Zeile heißt nach der Nummer, die der Abgang auch im Plan
+        und im Schaltbild trägt. Blatt und Prüfansicht laufen in einer
+        Folge in der Reihenfolge der Ausstattung: erst die direkten
+        Abgänge, dann je RCD-Gruppe deren Zeile und dahinter ihre
+        FI/LS. Abgänge mit LS, gG oder ohne Absicherung bekommen keine
+        Zeile. Die Abgangsgruppen tragen dafür jetzt eine Kennung wie
+        die RCD-Gruppen; vorhandene Typen bekommen sie beim Öffnen
+        still nachgetragen.
 -->
 
 <!-- ====================== OFFENE BEFUNDE ==========================
@@ -1094,7 +1115,7 @@
 <script type="module">
 "use strict";
 
-const FASSUNG = "v1.58 · 08.09.2026";
+const FASSUNG = "v1.59 · 08.09.2026";
 
 /* Zugang. Ein Schild, kein Schloss – wer den Quelltext liest, kommt daran
    vorbei; es hält den ab, der die Adresse zufällig öffnet.
@@ -3285,25 +3306,117 @@ let UV = null;   // der geöffnete Verteiler
 const neueKennung = (v) => v + "_" + Date.now().toString(36) + Math.random().toString(36).slice(2,5);
 
 /* Reihenfolge der Abgänge ändern. Die Nummer ist die Position in der
-   Liste, sie ergibt sich also von selbst neu. Verschoben wird nur
-   innerhalb der eigenen Gruppe: ein Abgang hinter einem RCD tauscht mit
-   dem nächsten Abgang hinter demselben RCD, ein direkter mit dem
-   nächsten direkten. */
+   Liste, sie ergibt sich also von selbst neu.
+
+   Seit v1.59 tragen die Pfeile über die Gruppengrenze. Maßgeblich ist
+   die SICHTBARE Folge: erst die direkten Abgänge, dann je RCD-Gruppe
+   deren Kopfzeile und darunter ihre Abgänge. Verschoben wird um genau
+   einen Platz in dieser Folge. Trifft der Zug dabei auf eine
+   Kopfzeile, wechselt der Abgang die Gruppe – nach oben ans Ende des
+   Abschnitts darüber, nach unten an den Anfang der Gruppe darunter.
+
+   Die beiden Ansichten führen dieselben Formen: der Verteiler
+   UV.abgaenge/UV.rcds, die Ausstattung TYP.gruppen/TYP.rcds. Die
+   Funktionen hier arbeiten deshalb auf übergebenen Listen. */
 let sortModus = false;
 
-function nachbarInGruppe(i, richtung){
-  const liste = UV.abgaenge, g = liste[i].rcd || null;
-  for (let k = i + richtung; k >= 0 && k < liste.length; k += richtung)
-    if ((liste[k].rcd || null) === g) return k;
-  return -1;
+/* Ein Abgang, der auf eine nicht mehr vorhandene Gruppe zeigt, gilt als
+   direkt – so wird er auch gezeichnet. */
+const gruppeVon = (a, rcds) =>
+  (a.rcd && rcds.some(r => r.id === a.rcd)) ? a.rcd : null;
+
+function sichtFolge(liste, rcds){
+  const folge = [];
+  liste.filter(a => gruppeVon(a, rcds) === null)
+       .forEach(a => folge.push({ art:"abgang", a, rcd:null }));
+  for (const r of rcds){
+    folge.push({ art:"kopf", r });
+    liste.filter(a => gruppeVon(a, rcds) === r.id)
+         .forEach(a => folge.push({ art:"abgang", a, rcd:r.id }));
+  }
+  return folge;
 }
-async function abgangVerschieben(a, richtung){
-  const liste = UV.abgaenge;
+
+/* Bringt die Liste in die sichtbare Folge. Danach ist die Position im
+   Feld dieselbe wie die Position auf dem Schirm – und damit stimmen
+   die Nummern, die Schaltbild und Beschriftung tragen. */
+function folgeOrdnen(liste, rcds){
+  const neu = liste.filter(a => gruppeVon(a, rcds) === null);
+  for (const r of rcds) neu.push(...liste.filter(a => gruppeVon(a, rcds) === r.id));
+  liste.length = 0;
+  neu.forEach(a => liste.push(a));
+}
+
+const kannAbgangZiehen = (liste, rcds, a, richtung) => {
+  const folge = sichtFolge(liste, rcds);
+  const i = folge.findIndex(e => e.art === "abgang" && e.a === a);
+  const k = i + richtung;
+  return i >= 0 && k >= 0 && k < folge.length;
+};
+
+/* Setzt den Abgang in eine Gruppe und an deren Rand. Ist die Gruppe
+   leer, hängt er hinten an – die Zeichnung filtert ohnehin, und der
+   nächste folgeOrdnen rückt alles an seinen Platz. */
+function abgangEinordnen(liste, rcds, a, gruppe, wohin){
   const i = liste.indexOf(a);
-  if (i < 0) return;
-  const k = nachbarInGruppe(i, richtung);
-  if (k < 0) return;
-  liste[i] = liste[k]; liste[k] = a;
+  if (i >= 0) liste.splice(i, 1);
+  a.rcd = gruppe;
+  const platz = [];
+  liste.forEach((x, k) => { if (gruppeVon(x, rcds) === gruppe) platz.push(k); });
+  if (!platz.length) liste.push(a);
+  else if (wohin === "anfang") liste.splice(platz[0], 0, a);
+  else liste.splice(platz[platz.length - 1] + 1, 0, a);
+}
+
+function abgangSchritt(liste, rcds, a, richtung){
+  const folge = sichtFolge(liste, rcds);
+  const i = folge.findIndex(e => e.art === "abgang" && e.a === a);
+  const k = i + richtung;
+  if (i < 0 || k < 0 || k >= folge.length) return false;
+  const ziel = folge[k];
+
+  /* Nachbar im selben Abschnitt: schlichter Tausch. Zwischen zwei
+     Gruppen steht immer eine Kopfzeile, ein Abgang als Nachbar gehört
+     also zwangsläufig zum selben Abschnitt. */
+  if (ziel.art === "abgang"){
+    const p = liste.indexOf(a), q = liste.indexOf(ziel.a);
+    liste[p] = ziel.a; liste[q] = a;
+    folgeOrdnen(liste, rcds);
+    return true;
+  }
+
+  /* Kopfzeile getroffen. Nach oben ist es immer die eigene: der Abgang
+     verlässt seine Gruppe und setzt sich ans Ende des Abschnitts
+     davor. Nach unten ist es die der nächsten Gruppe, dort geht er
+     nach vorn. */
+  if (richtung < 0){
+    const v = rcds.indexOf(ziel.r) - 1;
+    abgangEinordnen(liste, rcds, a, v >= 0 ? rcds[v].id : null, "ende");
+  } else {
+    abgangEinordnen(liste, rcds, a, ziel.r.id, "anfang");
+  }
+  folgeOrdnen(liste, rcds);
+  return true;
+}
+
+/* Eine RCD-Gruppe tauscht mit der nächsten. Ihre Abgänge hängen an der
+   Kennung und wandern von selbst mit; der Abschnitt der direkten
+   Abgänge bleibt immer oben. */
+function rcdSchritt(liste, rcds, r, richtung){
+  const i = rcds.indexOf(r), k = i + richtung;
+  if (i < 0 || k < 0 || k >= rcds.length) return false;
+  rcds[i] = rcds[k]; rcds[k] = r;
+  folgeOrdnen(liste, rcds);
+  return true;
+}
+
+async function abgangVerschieben(a, richtung){
+  if (!abgangSchritt(UV.abgaenge, UV.rcds, a, richtung)) return;
+  await merken();
+  uvZeichnen();
+}
+async function uvRcdVerschieben(r, richtung){
+  if (!rcdSchritt(UV.abgaenge, UV.rcds, r, richtung)) return;
   await merken();
   uvZeichnen();
 }
@@ -3388,7 +3501,7 @@ function uvZeichnen(){
     ? UV.abgaenge.length + " Abgänge, " + frei + " frei"
     : "Abgänge");
 
-  if (UV.abgaenge.length > 1){
+  if (UV.abgaenge.length > 1 || UV.rcds.length > 1){
     const rk = knopfIn(ziel, sortModus ? "Reihenfolge fertig" : "Reihenfolge ändern",
                        () => { sortModus = !sortModus; uvZeichnen(); },
                        sortModus ? "" : "leer");
@@ -3405,26 +3518,33 @@ function uvZeichnen(){
       unten: [a.art, kettenText(a)].filter(Boolean).join(" · "),
       beiKlick: () => abgangOeffnen(a),
       sortier: sortModus ? {
-        auf: nachbarInGruppe(i, -1) >= 0,
-        ab:  nachbarInGruppe(i, +1) >= 0,
+        auf: kannAbgangZiehen(UV.abgaenge, UV.rcds, a, -1),
+        ab:  kannAbgangZiehen(UV.abgaenge, UV.rcds, a, +1),
         beiAuf: () => abgangVerschieben(a, -1),
         beiAb:  () => abgangVerschieben(a, +1),
       } : null,
     }));
   };
 
-  const direkt = UV.abgaenge.filter(a => !a.rcd || !UV.rcds.some(r => r.id === a.rcd));
+  const direkt = UV.abgaenge.filter(a => gruppeVon(a, UV.rcds) === null);
   if (UV.rcds.length) unterschrift(ziel, "Direkt am Verteiler");
   if (!direkt.length && !UV.rcds.length) platzhalterIn(ziel, "Noch keine Abgänge angelegt.");
   direkt.forEach(a => abgangZeile(ziel, a));
   if (!sortModus) zuKnopf(ziel, "Abgänge", () => abgaengeHinzufuegen(null));
 
   for (const r of UV.rcds){
-    const dahinter = UV.abgaenge.filter(a => a.rcd === r.id);
+    const dahinter = UV.abgaenge.filter(a => gruppeVon(a, UV.rcds) === r.id);
+    const i = UV.rcds.indexOf(r);
     ziel.appendChild(zeile({
       oben: r.name,
       unten: kettenText(r),
       beiKlick: () => rcdBearbeiten(r),
+      sortier: sortModus ? {
+        auf: i > 0,
+        ab:  i < UV.rcds.length - 1,
+        beiAuf: () => uvRcdVerschieben(r, -1),
+        beiAb:  () => uvRcdVerschieben(r, +1),
+      } : null,
     }));
     const kasten = gruppenKasten(ziel);
     if (!dahinter.length) platzhalterIn(kasten, "Noch nichts hinter dieser Gruppe.");
@@ -4102,7 +4222,7 @@ async function typGruppe(t, g, rcdVorgabe){
   if (!g){
     const s = await sicherungWaehlen(sicherungVorgabe(art), "Absicherung der Abgänge");
     if (!s) return;
-    t.gruppen.push({ art, anzahl, sicherung: s, rcd: a.werte.rcd || null });
+    t.gruppen.push({ id: neueKennung("gr"), art, anzahl, sicherung: s, rcd: a.werte.rcd || null });
     return;
   }
   g.art = art; g.anzahl = anzahl; g.rcd = a.werte.rcd || null;
@@ -4151,7 +4271,7 @@ async function typBearbeiten(t){
     ],
     knoepfe: [{ text:"Übernehmen", wert:"ok" },
               { text:"Ausstattung", wert:"abgaenge", art:"leer" }]
-      .concat(hatRcd(t) ? [{ text:"Geräte", wert:"geraete", art:"leer" }] : [])
+      .concat(hatSchutzorgane(t) ? [{ text:"Geräte", wert:"geraete", art:"leer" }] : [])
       .concat([{ text:"Typ löschen", wert:"weg", art:"gefahr" },
                { text:"Abbrechen", wert:null, art:"leer" }]),
   });
@@ -4288,22 +4408,17 @@ const platzhalterIn = (ziel, text) => {
 let TYP = null;
 let typSort = false;
 
-/* Verschoben wird nur innerhalb der eigenen Gruppe, wie im Verteiler.
-   Die Reihenfolge bestimmt später, in welcher Folge die Abgänge im
-   Plan angelegt werden. */
-function typNachbar(i, richtung){
-  const liste = TYP.gruppen, g = liste[i].rcd || null;
-  for (let k = i + richtung; k >= 0 && k < liste.length; k += richtung)
-    if ((liste[k].rcd || null) === g) return k;
-  return -1;
-}
+/* Verschoben wird um einen Platz in der sichtbaren Folge, wie im
+   Verteiler – die Logik dazu steht in Abschnitt 6. Die Reihenfolge
+   bestimmt, in welcher Folge die Abgänge im Plan angelegt werden, und
+   damit auch ihre Nummern im Protokoll. */
 async function typVerschieben(g, richtung){
-  const liste = TYP.gruppen;
-  const i = liste.indexOf(g);
-  if (i < 0) return;
-  const k = typNachbar(i, richtung);
-  if (k < 0) return;
-  liste[i] = liste[k]; liste[k] = g;
+  if (!abgangSchritt(TYP.gruppen, TYP.rcds, g, richtung)) return;
+  await bestandSpeichern(BESTAND);
+  typZeichnen();
+}
+async function typRcdVerschieben(r, richtung){
+  if (!rcdSchritt(TYP.gruppen, TYP.rcds, r, richtung)) return;
   await bestandSpeichern(BESTAND);
   typZeichnen();
 }
@@ -4311,8 +4426,7 @@ async function typVerschieben(g, richtung){
 function typOeffnen(t){
   TYP = t;
   typSort = false;
-  if (!TYP.gruppen) TYP.gruppen = [];
-  if (!TYP.rcds) TYP.rcds = [];
+  typVorbereiten(TYP);
   $("typTitel").textContent = t.name;
   typZeichnen();
   schirmZeigen("schirmTyp");
@@ -4327,15 +4441,14 @@ $("typZurueck").addEventListener("click", async () => {
 
 /* Eine Abgangsgruppe als Zeile */
 function gruppenZeile(ziel, g){
-  const i = TYP.gruppen.indexOf(g);
   ziel.appendChild(zeile({
     nr: g.anzahl,
     oben: g.art,
     unten: sicherungText(g.sicherung),
     beiKlick: async () => { await typGruppe(TYP, g); await bestandSpeichern(BESTAND); typZeichnen(); },
     sortier: typSort ? {
-      auf: typNachbar(i, -1) >= 0,
-      ab:  typNachbar(i, +1) >= 0,
+      auf: kannAbgangZiehen(TYP.gruppen, TYP.rcds, g, -1),
+      ab:  kannAbgangZiehen(TYP.gruppen, TYP.rcds, g, +1),
       beiAuf: () => typVerschieben(g, -1),
       beiAb:  () => typVerschieben(g, +1),
     } : null,
@@ -4379,25 +4492,32 @@ function typZeichnen(){
     return;
   }
 
-  if (t.gruppen.length > 1){
+  if (t.gruppen.length > 1 || t.rcds.length > 1){
     const rk = knopfIn(ziel, typSort ? "Reihenfolge fertig" : "Reihenfolge ändern",
                        () => { typSort = !typSort; typZeichnen(); },
                        typSort ? "" : "leer");
     rk.style.marginBottom = "10px";
   }
 
-  const direkt = t.gruppen.filter(g => !g.rcd);
+  const direkt = t.gruppen.filter(g => gruppeVon(g, t.rcds) === null);
   if (t.rcds.length) unterschrift(ziel, "Direkt am Anschluss");
   if (!direkt.length && !t.rcds.length) platzhalterIn(ziel, "Noch keine Abgänge angelegt.");
   direkt.forEach(g => gruppenZeile(ziel, g));
   if (!typSort) zuKnopf(ziel, "Abgänge", () => typGruppeNeu(null));
 
   for (const r of t.rcds){
-    const dahinter = t.gruppen.filter(g => g.rcd === r.id);
+    const dahinter = t.gruppen.filter(g => gruppeVon(g, t.rcds) === r.id);
+    const i = t.rcds.indexOf(r);
     ziel.appendChild(zeile({
       oben: r.name,
       unten: kettenText(r),
       beiKlick: async () => { await typRcd(t, r); await bestandSpeichern(BESTAND); typZeichnen(); },
+      sortier: typSort ? {
+        auf: i > 0,
+        ab:  i < t.rcds.length - 1,
+        beiAuf: () => typRcdVerschieben(r, -1),
+        beiAb:  () => typRcdVerschieben(r, +1),
+      } : null,
     }));
     const kasten = gruppenKasten(ziel);
     if (!dahinter.length) platzhalterIn(kasten, "Noch nichts hinter dieser Gruppe.");
@@ -4481,8 +4601,24 @@ const T_GRENZE = 300;   // höchste Auslösezeit in ms beim Nennfehlerstrom
    Nennfehlerstrom wird der Strom nicht bewertet. */
 const iaGrenzen = (ma) => ma ? { min: ma / 2, max: ma } : null;
 
-function hatRcd(t){
-  return !!((t.rcds || []).length || (t.geraete || []).length);
+function hatSchutzorgane(t){
+  if ((t.rcds || []).length) return true;
+  if ((t.geraete || []).length) return true;
+  return (t.gruppen || []).some(g => g.sicherung && g.sicherung.art === "FI/LS");
+}
+
+/* Ein Typ, der geprüft werden soll, braucht Kennungen an seinen
+   Abgangsgruppen – ohne die findet eine offene Prüfung ihre Zeilen
+   nicht wieder, sobald am Typ etwas geändert wird. Ältere Typen
+   bekommen sie hier still nachgetragen. Dazu wird die Liste einmal in
+   die sichtbare Folge gebracht, damit die Nummern der Abgänge von oben
+   nach unten durchlaufen. */
+function typVorbereiten(t){
+  if (!t.gruppen) t.gruppen = [];
+  if (!t.rcds)    t.rcds = [];
+  if (!t.geraete) t.geraete = [];
+  for (const g of t.gruppen) if (!g.id) g.id = neueKennung("gr");
+  folgeOrdnen(t.gruppen, t.rcds);
 }
 
 /* ---- Zahlen und Datum ---- */
@@ -4543,35 +4679,95 @@ const nenndatenText = (z) =>
 
 /* ---- Eine Prüfung anlegen und nachziehen ---- */
 
+/* Geprüft wird jedes Schutzorgan mit Fehlerstromauslösung: die
+   RCD-Gruppen und jeder einzelne FI/LS. Eine Abgangsgruppe "3 × Schuko
+   mit FI/LS B16" sind drei Geräte und damit drei Zeilen. Abgänge mit
+   LS, gG oder ohne Absicherung bekommen keine.
+
+   Die Nummer einer FI/LS-Zeile ist die Nummer, die derselbe Abgang
+   auch im Plan und im Schaltbild trägt: gezählt wird wie in
+   bestueckungAusTyp, also der durchgeschleifte Abgang zuerst, danach
+   die Gruppen in ihrer Reihenfolge, jede so oft wie ihre Anzahl. */
+function abgangsNummern(t){
+  const start = new Map();
+  let nr = (t.durchgeschleift && t.anschluss === "CEE 63A") ? 1 : 0;
+  for (const g of (t.gruppen || [])){ start.set(g.id, nr + 1); nr += g.anzahl; }
+  return start;
+}
+
+const rcdZeileAus = (r) => ({
+  art: "rcd", quelle: r.id, name: r.name,
+  geraet: sicherungText(r.sicherung),
+  ma: r.sicherung ? r.sicherung.ma : null,
+  ia: null, ta: null, taste: false,
+});
+
+const filsZeileAus = (t, g, nr, i) => {
+  const r = g.rcd ? (t.rcds || []).find(x => x.id === g.rcd) : null;
+  return {
+    art: "fils", quelle: g.id + "#" + i,
+    name: "Abgang " + nr + " · " + g.art + (r ? " · hinter " + r.name : ""),
+    geraet: sicherungText(g.sicherung),
+    ma: g.sicherung ? g.sicherung.ma : null,
+    ia: null, ta: null, taste: false,
+  };
+};
+
+/* Die Folge des Blattes ist die der Ausstattung: erst die direkten
+   Abgänge, dann je RCD-Gruppe deren Zeile und dahinter ihre FI/LS. */
+function pruefzeilenAusTyp(t){
+  const nummern = abgangsNummern(t);
+  const filsIn = (gruppe) => {
+    const raus = [];
+    for (const g of (t.gruppen || [])){
+      if (gruppeVon(g, t.rcds || []) !== gruppe) continue;
+      if (!g.sicherung || g.sicherung.art !== "FI/LS") continue;
+      const start = nummern.get(g.id) || 1;
+      for (let i = 0; i < g.anzahl; i++) raus.push(filsZeileAus(t, g, start + i, i));
+    }
+    return raus;
+  };
+
+  const zeilen = filsIn(null);
+  for (const r of (t.rcds || [])){
+    zeilen.push(rcdZeileAus(r));
+    filsIn(r.id).forEach(z => zeilen.push(z));
+  }
+  return zeilen;
+}
+
 function neuePruefung(t){
   return {
     datum: heuteIso(),
     pruefer: PRUEFER,
     messgeraet: MESSGERAET,
     ergebnis: "offen",
-    zeilen: (t.rcds || []).map(r => ({
-      rcdId: r.id, name: r.name,
-      strom: r.sicherung ? r.sicherung.strom : null,
-      ma:    r.sicherung ? r.sicherung.ma    : null,
-      ia: null, ta: null, taste: false,
-    })),
+    zeilen: pruefzeilenAusTyp(t),
   };
 }
 
-/* Kommt am Typ nachträglich eine RCD-Gruppe dazu, bekommt eine offene
-   Prüfung ihre Zeile noch – sonst bliebe sie ungemessen. Zeilen zu
-   Gruppen, die es nicht mehr gibt, bleiben stehen: sie sind gemessen
-   worden und gehören ins Blatt. */
+/* Ändert sich am Typ etwas, wird die offene Prüfung nachgezogen: neue
+   Schutzorgane bekommen ihre Zeile, die Folge richtet sich neu nach
+   der Ausstattung. Zeilen zu Geräten, die es am Typ nicht mehr gibt,
+   bleiben am Ende stehen – sie sind gemessen worden und gehören ins
+   Blatt. Gemessene Zeilen behalten ihre eigene Beschriftung: sie sind
+   eine Momentaufnahme und sollen lesbar bleiben. */
 function pruefungAngleichen(t, pr){
-  for (const r of (t.rcds || [])){
-    if (pr.zeilen.some(z => z.rcdId === r.id)) continue;
-    pr.zeilen.push({
-      rcdId: r.id, name: r.name,
-      strom: r.sicherung ? r.sicherung.strom : null,
-      ma:    r.sicherung ? r.sicherung.ma    : null,
-      ia: null, ta: null, taste: false,
-    });
+  for (const z of pr.zeilen){
+    if (!z.quelle && z.rcdId){ z.quelle = z.rcdId; z.art = "rcd"; }
+    if (!z.geraet)
+      z.geraet = sicherungText({ art:"FI", kennlinie:null, strom:z.strom, ma:z.ma });
   }
+  const soll = pruefzeilenAusTyp(t);
+  const alt = new Map(pr.zeilen.map(z => [z.quelle, z]));
+  const neu = [];
+  for (const s of soll){
+    const a = alt.get(s.quelle);
+    if (a){ neu.push(a); alt.delete(s.quelle); }
+    else neu.push(s);
+  }
+  for (const rest of alt.values()) neu.push(rest);
+  pr.zeilen = neu;
 }
 
 /* ---- Geräte eines Typs ---- */
@@ -4583,7 +4779,8 @@ let MESSGERAET = "";
 
 async function geraeteOeffnen(t){
   GTYP = t;
-  if (!GTYP.geraete) GTYP.geraete = [];
+  typVorbereiten(GTYP);
+  await bestandSpeichern(BESTAND);
   PRUEFER = await prueferHolen();
   MESSGERAET = await messgeraetHolen();
   $("geTitel").textContent = t.name;
@@ -4606,10 +4803,10 @@ function geraeteZeichnen(){
   const ziel = $("geInhalt");
   ziel.innerHTML = "";
   const t = GTYP, liste = t.geraete;
-  const rcds = (t.rcds || []).length;
+  const schutz = pruefzeilenAusTyp(t).length;
 
   platzhalterIn(ziel, [t.name,
-    rcds ? (rcds === 1 ? "1 RCD-Gruppe" : rcds + " RCD-Gruppen") : "keine RCD-Gruppe"
+    schutz ? (schutz === 1 ? "1 Schutzorgan" : schutz + " Schutzorgane") : "kein Schutzorgan"
   ].join(" · "));
 
   if (!liste.length)
@@ -4763,8 +4960,7 @@ function messFeld(ziel, name, einheit, wert){
 }
 
 function rcdBlock(ziel, z){
-  const nenn = nenndatenText(z);
-  unterschrift(ziel, nenn ? z.name + " · FI " + nenn : z.name);
+  unterschrift(ziel, z.geraet ? z.name + " · " + z.geraet : z.name);
 
   const eIa = messFeld(ziel, "Auslösestrom", "mA", z.ia);
   const eTa = messFeld(ziel, "Auslösezeit", "ms", z.ta);
@@ -4818,9 +5014,9 @@ function rcdZeichnen(){
   ziel.appendChild(zeile({ oben: pr.messgeraet || "nicht angegeben", unten:"Messgerät",
                            beiKlick: () => kopfAendern("messgeraet") }));
 
-  const h2 = document.createElement("h2"); h2.textContent = "RCD-Gruppen"; ziel.appendChild(h2);
+  const h2 = document.createElement("h2"); h2.textContent = "Schutzorgane"; ziel.appendChild(h2);
   if (!pr.zeilen.length){
-    platzhalterIn(ziel, "Dieser Typ führt keine RCD-Gruppe. Leg sie in der Ausstattung an.");
+    platzhalterIn(ziel, "Dieser Typ führt weder eine RCD-Gruppe noch einen FI/LS. Leg sie in der Ausstattung an.");
     return;
   }
   for (const z of pr.zeilen) rcdBlock(ziel, z);
@@ -4916,7 +5112,7 @@ function rcdProtokollHtml(t, g){
     const w = zeileWert(z);
     return `<tr>
       <td>${esc(z.name)}</td>
-      <td>${esc(nenndatenText(z) || "–")}</td>
+      <td>${esc(z.geraet || nenndatenText(z) || "–")}</td>
       <td class="z">${z.ia == null ? "–" : esc(zahlText(z.ia))}</td>
       <td class="z">${z.ta == null ? "–" : esc(zahlText(z.ta))}</td>
       <td class="z">${z.taste ? "i.O." : "n.i.O."}</td>
@@ -4964,7 +5160,7 @@ function rcdProtokollHtml(t, g){
 
     <table class="werte">
       <thead><tr>
-        <th>RCD-Gruppe</th><th>Nenndaten</th>
+        <th>Schutzorgan</th><th>Gerät</th>
         <th>Auslösestrom (mA)</th><th>Auslösezeit (ms)</th>
         <th>Prüftaste</th><th>Ergebnis</th>
       </tr></thead>
