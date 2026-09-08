@@ -2,7 +2,7 @@
 <html lang="de">
 <!--
   SF E-Plan
-  v1.57 · 04.09.2026
+  v1.58 · 08.09.2026
 
   Änderungsliste
   v1.0  Stufe 1: DWG einlesen, Plan dauerhaft ablegen, mehrere Pläne
@@ -386,6 +386,23 @@
         wer den Quelltext liest, kommt daran vorbei.
         Nachgezogen: die Versionszeile im Kopf stand seit v1.48 auf
         v1.47, während Änderungsliste und FASSUNG weiterliefen.
+  v1.58 RCD-Prüfung im Bestand. Ein Typ führt jetzt seine einzelnen
+        Geräte: hinter dem Knopf "Geräte" bekommt jedes Stück eine
+        Gerätenummer, höchstens so viele, wie die Stückzahl am Typ
+        hergibt. Dahinter liegt je Gerät eine Prüfung mit einer Zeile
+        für jede RCD-Gruppe – Auslösestrom, Auslösezeit und die
+        Auslösung über die Prüftaste. Bewertet wird gerechnet:
+        Auslösestrom zwischen dem halben und dem vollen
+        Nennfehlerstrom, Auslösezeit höchstens 300 ms, Prüftaste
+        angehakt. Behalten wird nur die letzte Prüfung; eine neue
+        ersetzt sie erst nach Rückfrage. Das Protokoll ist ein Blatt je
+        Gerät und geht über denselben Bildschirm hinaus wie das
+        Schaltbild, der dafür neutral geworden ist. Name und Nenndaten
+        der RCD-Gruppe wandern in die Prüfung hinein, damit ein altes
+        Blatt lesbar bleibt, wenn der Typ später geändert wird. Prüfer
+        und Messgerät stehen wie der Empfänger im Gerätespeicher und
+        sind je Prüfung änderbar. Die Stückzahl am Typ lässt sich nicht
+        unter die Zahl der erfassten Geräte senken.
 -->
 
 <!-- ====================== OFFENE BEFUNDE ==========================
@@ -799,6 +816,38 @@
   .hakenzeile .haupt{flex:1;min-width:0}
   .hakenzeile .oben{display:block;font-weight:600}
   .hakenzeile .unten{display:block;font-size:13px;color:var(--ink-leise);margin-top:2px}
+
+  /* ---------- RCD-Prüfung ----------
+     Ein Messfeld sieht aus wie eine Zeile, trägt statt des Pfeils aber
+     ein Eingabefeld und seine Einheit. Die Bewertung steht als leise
+     Zeile darunter und ändert sich beim Tippen mit. */
+  .messfeld{
+    display:flex;align-items:center;gap:12px;width:100%;
+    border:1px solid var(--linie);border-radius:var(--radius);
+    padding:8px 14px;margin-bottom:8px;background:var(--grund);
+  }
+  .messfeld .name{flex:1;min-width:0;font-weight:600}
+  .messfeld input{
+    width:104px;flex:0 0 auto;text-align:right;font:inherit;
+    border:1px solid var(--linie);border-radius:10px;padding:9px 10px;
+    background:var(--grund);color:var(--ink);
+  }
+  .messfeld input:focus{outline:none;border-color:var(--akzent)}
+  .messfeld input.aus{border-color:var(--warn);color:var(--warn)}
+  .messfeld .einheit{width:24px;flex:0 0 auto;font-size:14px;color:var(--ink-leise)}
+  .wertung{font-size:13px;margin:-2px 2px 16px}
+  .wertung.io{color:var(--akzent)}
+  .wertung.nio{color:var(--warn)}
+  .wertung.offen{color:var(--ink-leise)}
+  .gesamtzeile{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    border:1px solid var(--linie);border-radius:var(--radius);
+    padding:14px;margin:14px 0 12px;
+  }
+  .gesamtzeile .wert{font-weight:700}
+  .gesamtzeile.io{border-color:var(--akzent);color:var(--akzent)}
+  .gesamtzeile.nio{border-color:var(--warn);color:var(--warn)}
+  .gesamtzeile.offen{color:var(--ink-leise)}
   /* Zeigt die inneren Werte, während gearbeitet wird. Nimmt selbst keine
      Tipps an, sonst würde sie genau das verfälschen, was sie messen soll.
      Sie liegt über allem anderen. */
@@ -935,6 +984,26 @@
   <div class="rumpf"><div class="innen" id="typInhalt"></div></div>
 </div>
 
+<!-- =============== Geräte eines Bestandstyps =============== -->
+<div class="schirm" id="schirmGeraete">
+  <div class="kopf">
+    <button id="geZurueck" aria-label="Zurück">&#8592;</button>
+    <span class="titel" id="geTitel">Geräte</span>
+    <span class="platz"></span>
+  </div>
+  <div class="rumpf"><div class="innen" id="geInhalt"></div></div>
+</div>
+
+<!-- =============== RCD-Prüfung eines Geräts =============== -->
+<div class="schirm" id="schirmRcd">
+  <div class="kopf">
+    <button id="rpZurueck" aria-label="Zurück">&#8592;</button>
+    <span class="titel">RCD-Prüfung</span>
+    <span class="platz"></span>
+  </div>
+  <div class="rumpf"><div class="innen" id="rpInhalt"></div></div>
+</div>
+
 <!-- ======================= Ein Verteiler ======================= -->
 <div class="schirm" id="schirmUV">
   <div class="kopf">
@@ -949,7 +1018,7 @@
 <div class="schirm" id="schirmSchaltbild">
   <div class="kopf">
     <button id="sbZurueck" aria-label="Zurück">&#8592;</button>
-    <span class="titel">Prinzipschaltbild</span>
+    <span class="titel" id="sbTitel">Prinzipschaltbild</span>
     <span class="platz"></span>
   </div>
   <iframe id="sbRahmen" title="Voransicht"></iframe>
@@ -1025,7 +1094,7 @@
 <script type="module">
 "use strict";
 
-const FASSUNG = "v1.57 · 04.09.2026";
+const FASSUNG = "v1.58 · 08.09.2026";
 
 /* Zugang. Ein Schild, kein Schloss – wer den Quelltext liest, kommt daran
    vorbei; es hält den ab, der die Adresse zufällig öffnet.
@@ -1319,6 +1388,19 @@ const bestandHolen = () => dbTun("readonly", s => s.get("bestand"), EINST)
   .then(e => (e && e.wert) || []);
 const bestandSpeichern = (wert) =>
   dbTun("readwrite", s => s.put({ id:"bestand", wert }), EINST);
+
+/* Prüfer und Messgerät gehören zum Gerät, nicht zur einzelnen Prüfung –
+   wie der Empfänger. Sie werden in jede neue Prüfung vorbelegt und
+   lassen sich dort einzeln überschreiben; die Änderung gilt dann auch
+   als neue Vorbelegung. */
+const prueferHolen = () => dbTun("readonly", s => s.get("pruefer"), EINST)
+  .then(e => (e && e.wert) || "");
+const prueferSpeichern = (wert) =>
+  dbTun("readwrite", s => s.put({ id:"pruefer", wert }), EINST);
+const messgeraetHolen = () => dbTun("readonly", s => s.get("messgeraet"), EINST)
+  .then(e => (e && e.wert) || "");
+const messgeraetSpeichern = (wert) =>
+  dbTun("readwrite", s => s.put({ id:"messgeraet", wert }), EINST);
 
 /* ================================================================== */
 /* 3 · DWG einlesen                                                    */
@@ -4068,9 +4150,10 @@ async function typBearbeiten(t){
         optionen: anschlussOptionen() },
     ],
     knoepfe: [{ text:"Übernehmen", wert:"ok" },
-              { text:"Ausstattung", wert:"abgaenge", art:"leer" },
-              { text:"Typ löschen", wert:"weg", art:"gefahr" },
-              { text:"Abbrechen", wert:null, art:"leer" }],
+              { text:"Ausstattung", wert:"abgaenge", art:"leer" }]
+      .concat(hatRcd(t) ? [{ text:"Geräte", wert:"geraete", art:"leer" }] : [])
+      .concat([{ text:"Typ löschen", wert:"weg", art:"gefahr" },
+               { text:"Abbrechen", wert:null, art:"leer" }]),
   });
   if (!a.wahl) return;
   if (a.wahl === "weg"){
@@ -4092,6 +4175,14 @@ async function typBearbeiten(t){
       return hinweis("Stückzahl zu klein",
         "Im Plan " + (benutzt === 1 ? "steht bereits ein Verteiler" : "stehen bereits " + benutzt + " Verteiler") +
         " dieses Typs. Die Stückzahl kann nicht darunter liegen.");
+    }
+    /* Die erfassten Geräte hängen an der Stückzahl: unter ihre Anzahl
+       darf sie nicht fallen, sonst stünde ein Gerät ohne Platz da. */
+    const erfasst = (t.geraete || []).length;
+    if (neu < erfasst){
+      return hinweis("Stückzahl zu klein",
+        "Für diesen Typ " + (erfasst === 1 ? "ist ein Gerät" : "sind " + erfasst + " Geräte") +
+        " mit Gerätenummer erfasst. Lösche zuerst die überzähligen unter „Geräte“.");
     }
     t.anzahl = neu;
 
@@ -4120,6 +4211,10 @@ async function typBearbeiten(t){
     if (a.wahl === "abgaenge"){
       await bestandSpeichern(BESTAND);
       return typOeffnen(t);
+    }
+    if (a.wahl === "geraete"){
+      await bestandSpeichern(BESTAND);
+      return geraeteOeffnen(t);
     }
   }
   await bestandSpeichern(BESTAND);
@@ -4355,6 +4450,532 @@ async function typAnschlussAendern(){
   t.anschluss = neu;
   await bestandSpeichern(BESTAND);
   typZeichnen();
+}
+
+/* ================================================================== */
+/* 7b · Geräte eines Typs und ihre RCD-Prüfung                         */
+/* ================================================================== */
+
+/* Der Bestand führt Typen mit einer Stückzahl. Geprüft wird aber das
+   einzelne Stück, und ein Protokoll ohne Gerätenummer ist wertlos.
+   Darum trägt jeder Typ eine Liste seiner Geräte:
+
+     t.geraete = [{ id, nr, pruefung }]
+
+   pruefung ist null oder die LETZTE Prüfung; ältere werden nicht
+   aufbewahrt. Sie ist eine Momentaufnahme und trägt Name und Nenndaten
+   der RCD-Gruppen in sich, nicht nur deren Kennung – wird der Typ
+   später geändert, bleibt ein altes Blatt trotzdem lesbar.
+
+     pruefung = { datum, pruefer, messgeraet, ergebnis,
+                  zeilen:[{ rcdId, name, strom, ma, ia, ta, taste }] }
+
+   Der Bestand liegt im Gerätespeicher und nicht am Plan; die Geräte
+   reisen deshalb ohne Zutun in der Standdatei "gesamt" mit. */
+
+const T_GRENZE = 300;   // höchste Auslösezeit in ms beim Nennfehlerstrom
+
+/* Der Auslösestrom soll den Nennfehlerstrom nicht überschreiten und
+   nicht unter dessen Hälfte liegen – ein zu früh auslösender RCD ist
+   ebenso ein Befund wie ein zu später. Ohne hinterlegten
+   Nennfehlerstrom wird der Strom nicht bewertet. */
+const iaGrenzen = (ma) => ma ? { min: ma / 2, max: ma } : null;
+
+function hatRcd(t){
+  return !!((t.rcds || []).length || (t.geraete || []).length);
+}
+
+/* ---- Zahlen und Datum ---- */
+
+const messZahl = (s) => {
+  const t = String(s == null ? "" : s).replace(",", ".").trim();
+  if (!t) return null;
+  const n = Number(t);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+};
+const zahlText = (n) => n == null ? "" : String(n).replace(".", ",");
+const zwei = (n) => String(n).padStart(2, "0");
+
+const heuteIso = () => {
+  const d = new Date();
+  return d.getFullYear() + "-" + zwei(d.getMonth() + 1) + "-" + zwei(d.getDate());
+};
+function pruefDatum(iso){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ""));
+  return m ? m[3] + "." + m[2] + "." + m[1] : "ohne Datum";
+}
+/* Dateiname und Blattkopf tragen das Jahr zweistellig, wie beim
+   Schaltbild und beim Stand. */
+function stempelVon(iso){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ""));
+  return m ? m[1].slice(2) + "-" + m[2] + "-" + m[3] : stempelHeute();
+}
+
+/* ---- Bewertung ---- */
+
+/* Vollständig ist eine Zeile, sobald Auslösestrom und Auslösezeit
+   stehen. Das Kästchen der Prüftaste allein macht sie nicht
+   vollständig – aber eine leere Prüftaste macht sie n.i.O. */
+function zeileWert(z){
+  if (z.ia == null || z.ta == null) return "offen";
+  const gr = iaGrenzen(z.ma);
+  const iaOk = !gr || (z.ia >= gr.min && z.ia <= gr.max);
+  return (iaOk && z.ta <= T_GRENZE && z.taste) ? "io" : "nio";
+}
+function pruefungWert(pr){
+  if (!pr || !pr.zeilen.length) return "offen";
+  if (pr.zeilen.some(z => zeileWert(z) === "offen")) return "offen";
+  return pr.zeilen.every(z => zeileWert(z) === "io") ? "io" : "nio";
+}
+const wertWort = (w) => w === "io" ? "i.O." : w === "nio" ? "n.i.O." : "unvollständig";
+
+function maengelText(z){
+  const gr = iaGrenzen(z.ma), m = [];
+  if (gr && z.ia != null && z.ia > gr.max) m.push("Auslösestrom über " + zahlText(gr.max) + " mA");
+  if (gr && z.ia != null && z.ia < gr.min) m.push("Auslösestrom unter " + zahlText(gr.min) + " mA");
+  if (z.ta != null && z.ta > T_GRENZE)     m.push("Auslösezeit über " + T_GRENZE + " ms");
+  if (!z.taste)                            m.push("Prüftaste nicht bestätigt");
+  return m.join(", ");
+}
+
+const nenndatenText = (z) =>
+  [z.strom ? z.strom + " A" : null, z.ma ? z.ma + " mA" : null].filter(Boolean).join(" / ");
+
+/* ---- Eine Prüfung anlegen und nachziehen ---- */
+
+function neuePruefung(t){
+  return {
+    datum: heuteIso(),
+    pruefer: PRUEFER,
+    messgeraet: MESSGERAET,
+    ergebnis: "offen",
+    zeilen: (t.rcds || []).map(r => ({
+      rcdId: r.id, name: r.name,
+      strom: r.sicherung ? r.sicherung.strom : null,
+      ma:    r.sicherung ? r.sicherung.ma    : null,
+      ia: null, ta: null, taste: false,
+    })),
+  };
+}
+
+/* Kommt am Typ nachträglich eine RCD-Gruppe dazu, bekommt eine offene
+   Prüfung ihre Zeile noch – sonst bliebe sie ungemessen. Zeilen zu
+   Gruppen, die es nicht mehr gibt, bleiben stehen: sie sind gemessen
+   worden und gehören ins Blatt. */
+function pruefungAngleichen(t, pr){
+  for (const r of (t.rcds || [])){
+    if (pr.zeilen.some(z => z.rcdId === r.id)) continue;
+    pr.zeilen.push({
+      rcdId: r.id, name: r.name,
+      strom: r.sicherung ? r.sicherung.strom : null,
+      ma:    r.sicherung ? r.sicherung.ma    : null,
+      ia: null, ta: null, taste: false,
+    });
+  }
+}
+
+/* ---- Geräte eines Typs ---- */
+
+let GTYP = null;      // Typ, dessen Geräte gezeigt werden
+let GERAET = null;    // Gerät in der Prüfansicht
+let PRUEFER = "";
+let MESSGERAET = "";
+
+async function geraeteOeffnen(t){
+  GTYP = t;
+  if (!GTYP.geraete) GTYP.geraete = [];
+  PRUEFER = await prueferHolen();
+  MESSGERAET = await messgeraetHolen();
+  $("geTitel").textContent = t.name;
+  geraeteZeichnen();
+  schirmZeigen("schirmGeraete");
+}
+
+$("geZurueck").addEventListener("click", async () => {
+  await bestandSpeichern(BESTAND);
+  GTYP = null;
+  bestandZeichnen();
+  schirmZeigen("schirmBestand");
+});
+
+const geraetStand = (g) => g.pruefung
+  ? pruefDatum(g.pruefung.datum) + " · " + wertWort(pruefungWert(g.pruefung))
+  : "noch nicht geprüft";
+
+function geraeteZeichnen(){
+  const ziel = $("geInhalt");
+  ziel.innerHTML = "";
+  const t = GTYP, liste = t.geraete;
+  const rcds = (t.rcds || []).length;
+
+  platzhalterIn(ziel, [t.name,
+    rcds ? (rcds === 1 ? "1 RCD-Gruppe" : rcds + " RCD-Gruppen") : "keine RCD-Gruppe"
+  ].join(" · "));
+
+  if (!liste.length)
+    platzhalterIn(ziel, "Noch kein Gerät erfasst. Jedes Stück bekommt seine Gerätenummer und sein eigenes Protokoll.");
+  for (const g of liste)
+    ziel.appendChild(zeile({ oben: g.nr, unten: geraetStand(g), beiKlick: () => geraetOeffnen(g) }));
+
+  const voll = liste.length >= t.anzahl;
+  const b = knopfIn(ziel, "Gerät hinzufügen", geraetNeu);
+  b.style.marginTop = "10px";
+  b.disabled = voll;
+
+  const p = document.createElement("p");
+  p.className = "leise";
+  p.style.marginTop = "14px";
+  p.textContent = voll
+    ? "Alle " + t.anzahl + " Stück sind erfasst. Für ein weiteres Gerät zuerst die Stückzahl am Typ erhöhen."
+    : liste.length + " von " + t.anzahl + " Stück erfasst.";
+  ziel.appendChild(p);
+}
+
+const nummerFrei = (t, nr, ausser) =>
+  !t.geraete.some(g => g !== ausser && g.nr.toLowerCase() === nr.toLowerCase());
+
+async function geraetNeu(){
+  const t = GTYP;
+  if (t.geraete.length >= t.anzahl)
+    return hinweis("Stückzahl erreicht",
+      "Für diesen Typ sind " + t.anzahl + " Stück eingetragen. Erhöhe die Stückzahl am Typ, wenn ein weiteres Gerät dazukommt.");
+  const a = await formular({
+    titel: "Gerät hinzufügen",
+    text: "Die Gerätenummer steht im Protokoll und soll das Stück eindeutig bezeichnen.",
+    felder: [{ art:"text", name:"nr", beschriftung:"Gerätenummer", platzhalter:"z. B. BV-07" }],
+    knoepfe: [{ text:"Anlegen", wert:true }, { text:"Abbrechen", wert:false, art:"leer" }],
+  });
+  if (!a.wahl) return;
+  const nr = a.werte.nr.trim();
+  if (!nr) return;
+  if (!nummerFrei(t, nr, null))
+    return hinweis("Nummer schon vergeben", "„" + nr + "“ steht bereits in der Liste.");
+  t.geraete.push({ id: neueKennung("ger"), nr, pruefung: null });
+  await bestandSpeichern(BESTAND);
+  geraeteZeichnen();
+}
+
+async function geraetOeffnen(g){
+  const t = GTYP;
+  const a = await formular({
+    titel: g.nr,
+    text: geraetStand(g),
+    felder: [{ art:"text", name:"nr", beschriftung:"Gerätenummer", wert:g.nr }],
+    knoepfe: [{ text:"Übernehmen", wert:"ok" },
+              { text: g.pruefung ? "Prüfung öffnen" : "Prüfen", wert:"pruefen", art:"leer" },
+              { text:"Gerät löschen", wert:"weg", art:"gefahr" },
+              { text:"Abbrechen", wert:null, art:"leer" }],
+  });
+  if (!a.wahl) return;
+
+  if (a.wahl === "weg"){
+    const b = await frage({
+      titel: "Gerät löschen",
+      text: "„" + g.nr + "“ wird aus der Liste entfernt" +
+            (g.pruefung ? ", die Prüfung dazu geht mit verloren." : "."),
+      knoepfe: [{ text:"Löschen", wert:true, art:"gefahr" },
+                { text:"Behalten", wert:false, art:"leer" }],
+    });
+    if (!b.wahl) return;
+    t.geraete = t.geraete.filter(x => x !== g);
+    await bestandSpeichern(BESTAND);
+    return geraeteZeichnen();
+  }
+
+  const nr = a.werte.nr.trim();
+  if (nr && nr !== g.nr){
+    if (!nummerFrei(t, nr, g))
+      return hinweis("Nummer schon vergeben", "„" + nr + "“ steht bereits in der Liste.");
+    g.nr = nr;
+  }
+  await bestandSpeichern(BESTAND);
+  geraeteZeichnen();
+  if (a.wahl === "pruefen") await pruefungStarten(g);
+}
+
+/* Eine neue Prüfung ersetzt die alte – aber nie ungefragt: ein Blatt,
+   das durch einen Fehlgriff verschwindet, ist nicht wiederzubekommen. */
+async function pruefungStarten(g){
+  if (g.pruefung){
+    const b = await frage({
+      titel: "Bereits geprüft",
+      text: "Für dieses Gerät steht eine Prüfung vom " + pruefDatum(g.pruefung.datum) +
+            " (" + wertWort(pruefungWert(g.pruefung)) + "). Eine neue Prüfung ersetzt sie.",
+      knoepfe: [{ text:"Vorhandene öffnen", wert:"alt" },
+                { text:"Neue Prüfung", wert:"neu", art:"gefahr" },
+                { text:"Abbrechen", wert:null, art:"leer" }],
+    });
+    if (!b.wahl) return;
+    if (b.wahl === "neu") g.pruefung = neuePruefung(GTYP);
+  } else {
+    g.pruefung = neuePruefung(GTYP);
+  }
+  pruefungAngleichen(GTYP, g.pruefung);
+  await bestandSpeichern(BESTAND);
+  rcdOeffnen(g);
+}
+
+/* ---- Die Prüfansicht ---- */
+
+let gesamtZeile = null;
+
+function rcdOeffnen(g){
+  GERAET = g;
+  rcdZeichnen();
+  schirmZeigen("schirmRcd");
+}
+
+$("rpZurueck").addEventListener("click", async () => {
+  await pruefungSichern();
+  GERAET = null;
+  gesamtZeile = null;
+  geraeteZeichnen();
+  schirmZeigen("schirmGeraete");
+});
+
+async function pruefungSichern(){
+  if (!GERAET || !GERAET.pruefung) return;
+  GERAET.pruefung.ergebnis = pruefungWert(GERAET.pruefung);
+  await bestandSpeichern(BESTAND);
+}
+const pruefungMerken = () => { pruefungSichern(); };
+
+function gesamtSetzen(){
+  if (!gesamtZeile || !GERAET) return;
+  const w = pruefungWert(GERAET.pruefung);
+  gesamtZeile.className = "gesamtzeile " + w;
+  gesamtZeile.innerHTML = '<span>Gesamtergebnis</span><span class="wert"></span>';
+  gesamtZeile.querySelector(".wert").textContent = wertWort(w);
+}
+
+/* Ein Messfeld: Beschriftung links, Eingabe und Einheit rechts. */
+function messFeld(ziel, name, einheit, wert){
+  const d = document.createElement("div");
+  d.className = "messfeld";
+  d.innerHTML = '<span class="name"></span><input type="text"><span class="einheit"></span>';
+  d.querySelector(".name").textContent = name;
+  d.querySelector(".einheit").textContent = einheit;
+  const e = d.querySelector("input");
+  e.inputMode = "decimal";
+  e.value = zahlText(wert);
+  ziel.appendChild(d);
+  return e;
+}
+
+function rcdBlock(ziel, z){
+  const nenn = nenndatenText(z);
+  unterschrift(ziel, nenn ? z.name + " · FI " + nenn : z.name);
+
+  const eIa = messFeld(ziel, "Auslösestrom", "mA", z.ia);
+  const eTa = messFeld(ziel, "Auslösezeit", "ms", z.ta);
+  const haken = hakenZeile(ziel, {
+    text: "Auslösung über die Prüftaste",
+    an: !!z.taste,
+    beiKlick: () => {
+      z.taste = !z.taste;
+      haken.classList.toggle("an", z.taste);
+      frisch();
+      pruefungMerken();
+    },
+  });
+  const w = document.createElement("div");
+  ziel.appendChild(w);
+
+  /* Beim Tippen wird nur diese eine Zeile neu bewertet, nicht der
+     ganze Bildschirm – ein Neuaufbau nähme dem Feld den Fokus. */
+  function frisch(){
+    const gr = iaGrenzen(z.ma);
+    eIa.classList.toggle("aus", z.ia != null && !!gr && (z.ia < gr.min || z.ia > gr.max));
+    eTa.classList.toggle("aus", z.ta != null && z.ta > T_GRENZE);
+    const wert = zeileWert(z);
+    w.className = "wertung " + wert;
+    w.textContent = wert === "offen" ? "noch nicht vollständig gemessen"
+                  : wert === "io"    ? "i.O."
+                  : "n.i.O. · " + maengelText(z);
+    gesamtSetzen();
+  }
+  eIa.addEventListener("input", () => { z.ia = messZahl(eIa.value); frisch(); });
+  eTa.addEventListener("input", () => { z.ta = messZahl(eTa.value); frisch(); });
+  eIa.addEventListener("change", pruefungMerken);
+  eTa.addEventListener("change", pruefungMerken);
+  frisch();
+}
+
+function rcdZeichnen(){
+  const ziel = $("rpInhalt");
+  ziel.innerHTML = "";
+  /* Die alte Gesamtzeile hängt jetzt an nichts mehr; sie stehen zu
+     lassen hieße, in ein abgehängtes Element zu schreiben. */
+  gesamtZeile = null;
+  const t = GTYP, g = GERAET, pr = g.pruefung;
+
+  platzhalterIn(ziel, t.name + " · Gerät " + g.nr);
+
+  const h1 = document.createElement("h2"); h1.textContent = "Prüfung"; ziel.appendChild(h1);
+  ziel.appendChild(zeile({ oben: pruefDatum(pr.datum), unten:"Prüfdatum", beiKlick: datumAendern }));
+  ziel.appendChild(zeile({ oben: pr.pruefer || "nicht angegeben", unten:"Prüfer",
+                           beiKlick: () => kopfAendern("pruefer") }));
+  ziel.appendChild(zeile({ oben: pr.messgeraet || "nicht angegeben", unten:"Messgerät",
+                           beiKlick: () => kopfAendern("messgeraet") }));
+
+  const h2 = document.createElement("h2"); h2.textContent = "RCD-Gruppen"; ziel.appendChild(h2);
+  if (!pr.zeilen.length){
+    platzhalterIn(ziel, "Dieser Typ führt keine RCD-Gruppe. Leg sie in der Ausstattung an.");
+    return;
+  }
+  for (const z of pr.zeilen) rcdBlock(ziel, z);
+
+  gesamtZeile = document.createElement("div");
+  ziel.appendChild(gesamtZeile);
+  gesamtSetzen();
+
+  const p = document.createElement("p");
+  p.className = "leise";
+  p.textContent = "Bewertet wird der Auslösestrom zwischen dem halben und dem vollen " +
+                  "Nennfehlerstrom, die Auslösezeit bis " + T_GRENZE + " ms.";
+  ziel.appendChild(p);
+
+  knopfIn(ziel, "Protokoll weitergeben", protokollWeitergeben).style.marginTop = "10px";
+}
+
+async function datumAendern(){
+  const pr = GERAET.pruefung;
+  const a = await formular({
+    titel: "Prüfdatum",
+    felder: [{ art:"text", name:"d", beschriftung:"Datum (TT.MM.JJJJ)", wert: pruefDatum(pr.datum) }],
+    knoepfe: [{ text:"Übernehmen", wert:true }, { text:"Abbrechen", wert:false, art:"leer" }],
+  });
+  if (!a.wahl) return;
+  const m = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(a.werte.d.trim());
+  if (!m) return hinweis("Datum nicht lesbar", "Erwartet wird die Form 08.09.2026.");
+  pr.datum = m[3] + "-" + zwei(m[2]) + "-" + zwei(m[1]);
+  await pruefungSichern();
+  rcdZeichnen();
+}
+
+async function kopfAendern(feld){
+  const pr = GERAET.pruefung;
+  const istPruefer = feld === "pruefer";
+  const a = await formular({
+    titel: istPruefer ? "Prüfer" : "Messgerät",
+    text: "Der Eintrag wird für die nächsten Prüfungen als Vorbelegung gemerkt.",
+    felder: [{ art:"text", name:"w",
+               beschriftung: istPruefer ? "Name" : "Bezeichnung",
+               wert: pr[feld] || "",
+               platzhalter: istPruefer ? "Vor- und Nachname" : "z. B. Benning IT 130" }],
+    knoepfe: [{ text:"Übernehmen", wert:true }, { text:"Abbrechen", wert:false, art:"leer" }],
+  });
+  if (!a.wahl) return;
+  const wert = a.werte.w.trim();
+  pr[feld] = wert;
+  if (istPruefer){ PRUEFER = wert; await prueferSpeichern(wert); }
+  else           { MESSGERAET = wert; await messgeraetSpeichern(wert); }
+  await pruefungSichern();
+  rcdZeichnen();
+}
+
+async function protokollWeitergeben(){
+  await pruefungSichern();
+  const t = GTYP, g = GERAET;
+  if (pruefungWert(g.pruefung) === "offen"){
+    const b = await frage({
+      titel: "Prüfung unvollständig",
+      text: "Nicht alle RCD-Gruppen sind gemessen. Das Blatt zeigt die fehlenden Werte als Strich.",
+      knoepfe: [{ text:"Trotzdem weitergeben", wert:true },
+                { text:"Abbrechen", wert:false, art:"leer" }],
+    });
+    if (!b.wahl) return;
+  }
+  await weitergabeZeigen({
+    html: rcdProtokollHtml(t, g),
+    titel: "Protokoll",
+    name: stempelVon(g.pruefung.datum) + " RCD-Prüfung " + g.nr,
+    zurueck: () => { rcdZeichnen(); schirmZeigen("schirmRcd"); },
+  });
+}
+
+/* ---- Das Blatt ----
+   Ein Blatt je Gerät, im selben Bogen wie das Schaltbild (Abschnitt 12):
+   breiter als der Bogen, damit die PDF-Umwandlung auf die Seitenbreite
+   einpasst und Reserve für wachsende Zeilen bleibt. */
+
+function rcdProtokollHtml(t, g){
+  const pr = g.pruefung;
+  const wert = pruefungWert(pr);
+  const heute = new Date().toLocaleDateString("de-DE",
+    { day:"2-digit", month:"2-digit", year:"numeric" });
+
+  const kopfPaare = [
+    ["Prüfdatum", pruefDatum(pr.datum)],
+    ["Prüfer", pr.pruefer || "–"],
+    ["Messgerät", pr.messgeraet || "–"],
+    ["Anschluss", t.anschluss || "–"],
+  ].map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join("\n");
+
+  const zeilen = pr.zeilen.map(z => {
+    const w = zeileWert(z);
+    return `<tr>
+      <td>${esc(z.name)}</td>
+      <td>${esc(nenndatenText(z) || "–")}</td>
+      <td class="z">${z.ia == null ? "–" : esc(zahlText(z.ia))}</td>
+      <td class="z">${z.ta == null ? "–" : esc(zahlText(z.ta))}</td>
+      <td class="z">${z.taste ? "i.O." : "n.i.O."}</td>
+      <td class="z ${w}">${esc(wertWort(w))}</td>
+    </tr>`;
+  }).join("\n");
+
+  return `<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8">
+<title>RCD-Prüfung ${esc(g.nr)}</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#fff;color:#000;
+       font:14px/1.45 Helvetica,Arial,sans-serif;
+       -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{width:${PDF_BREITE}px;margin:0 auto}
+  .bogen{width:${BG_BREITE}px;margin:0 auto;padding:28px 0 40px}
+  .blatt{padding:0 ${S_RAND}px;page-break-inside:avoid;break-inside:avoid}
+  .kopf{display:flex;align-items:baseline;justify-content:space-between;
+        border-bottom:1px solid #000;padding-bottom:5px;margin-bottom:14px}
+  .kopf .name{font-size:16px;font-weight:700}
+  .kopf .art{font-size:12.5px;color:#333;margin-left:10px}
+  .kopf .zaehler{font-size:12px;color:#333}
+  table{border-collapse:collapse;width:100%}
+  .angaben{width:auto;margin-bottom:18px}
+  .angaben th{text-align:left;font-weight:400;color:#333;padding:2px 26px 2px 0;white-space:nowrap}
+  .angaben td{font-weight:600;padding:2px 0}
+  .werte{border:1px solid #000}
+  .werte th,.werte td{border:1px solid #000;padding:7px 9px;text-align:left}
+  .werte thead th{background:#EFEFEF;font-size:12.5px;font-weight:700}
+  .werte .z{text-align:center}
+  .werte .nio{font-weight:700}
+  .gesamt{margin-top:16px;font-size:15px}
+  .gesamt b{font-size:16px}
+  .fuss{margin-top:10px;font-size:11.5px;color:#333}
+</style></head>
+<body><div class="bogen">
+  <section class="blatt">
+    <div class="kopf">
+      <div><span class="name">${esc(g.nr)}</span><span class="art">${esc(t.name)} · Mobiler Verteiler</span></div>
+      <div class="zaehler">RCD-Prüfung · Stand ${heute}</div>
+    </div>
+
+    <table class="angaben">${kopfPaare}</table>
+
+    <table class="werte">
+      <thead><tr>
+        <th>RCD-Gruppe</th><th>Nenndaten</th>
+        <th>Auslösestrom (mA)</th><th>Auslösezeit (ms)</th>
+        <th>Prüftaste</th><th>Ergebnis</th>
+      </tr></thead>
+      <tbody>${zeilen}</tbody>
+    </table>
+
+    <div class="gesamt">Gesamtergebnis: <b>${esc(wertWort(wert))}</b></div>
+    <div class="fuss">Bewertet wird der Auslösestrom zwischen dem halben und dem vollen
+      Nennfehlerstrom, die Auslösezeit bis ${T_GRENZE} ms bei Nennfehlerstrom.</div>
+  </section>
+</div></body></html>`;
 }
 
 /* ================================================================== */
@@ -5173,19 +5794,34 @@ const empfaengerHolen = () => dbTun("readonly", s => s.get("empfaenger"), EINST)
 const empfaengerSpeichern = (wert) =>
   dbTun("readwrite", s => s.put({ id:"empfaenger", wert }), EINST);
 
-let schaltbildStand = null;   // {html, name, wurzel}
+/* Der Bildschirm trägt nicht mehr nur das Schaltbild: seit v1.58 geht
+   auch das RCD-Protokoll denselben Weg. Er hält deshalb nur noch das
+   fertige Blatt, seinen Dateinamen und den Rückweg. */
+let weitergabeStand = null;   // {html, name, zurueck}
 
-async function schaltbildZeigen(v){
-  EMPFAENGER = await empfaengerHolen();
-  const html = schaltbildHtml(v);
+function stempelHeute(){
   const d = new Date();
-  const stempel = String(d.getFullYear()).slice(2) + "-" +
-                  String(d.getMonth()+1).padStart(2,"0") + "-" +
-                  String(d.getDate()).padStart(2,"0");
-  schaltbildStand = { html, name: stempel + " Schaltbild " + v.name, wurzel:v };
+  return String(d.getFullYear()).slice(2) + "-" +
+         String(d.getMonth()+1).padStart(2,"0") + "-" +
+         String(d.getDate()).padStart(2,"0");
+}
+
+async function weitergabeZeigen({ html, name, titel, zurueck }){
+  EMPFAENGER = await empfaengerHolen();
+  weitergabeStand = { html, name, zurueck };
+  $("sbTitel").textContent = titel || "Weitergeben";
   $("sbRahmen").srcdoc = html;
   empfaengerZeile();
   schirmZeigen("schirmSchaltbild");
+}
+
+async function schaltbildZeigen(v){
+  await weitergabeZeigen({
+    html: schaltbildHtml(v),
+    name: stempelHeute() + " Schaltbild " + v.name,
+    titel: "Prinzipschaltbild",
+    zurueck: () => { schirmZeigen(UV ? "schirmUV" : "schirmPlan"); if (!UV) zeichne(); },
+  });
 }
 function empfaengerZeile(){
   $("sbEmpfaenger").textContent = EMPFAENGER
@@ -5207,16 +5843,17 @@ $("sbEmpfaenger").addEventListener("click", async () => {
   empfaengerZeile();
 });
 $("sbZurueck").addEventListener("click", () => {
-  schaltbildStand = null;
+  const zurueck = weitergabeStand && weitergabeStand.zurueck;
+  weitergabeStand = null;
   $("sbRahmen").srcdoc = "";
-  schirmZeigen(UV ? "schirmUV" : "schirmPlan");
-  if (!UV) zeichne();
+  if (zurueck) zurueck();
+  else { schirmZeigen(UV ? "schirmUV" : "schirmPlan"); if (!UV) zeichne(); }
 });
 
 $("sbTeilen").addEventListener("click", async () => {
-  if (!schaltbildStand) return;
-  const name = schaltbildStand.name + (EMPFAENGER ? "__" + EMPFAENGER : "") + ".html";
-  const datei = new File([schaltbildStand.html], name, { type:"text/html" });
+  if (!weitergabeStand) return;
+  const name = weitergabeStand.name + (EMPFAENGER ? "__" + EMPFAENGER : "") + ".html";
+  const datei = new File([weitergabeStand.html], name, { type:"text/html" });
   try{
     if (navigator.canShare && navigator.canShare({ files:[datei] })){
       await navigator.share({ files:[datei] });   // ohne Titel, sonst kommt ein Textobjekt mit
