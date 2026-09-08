@@ -2,7 +2,7 @@
 <html lang="de">
 <!--
   SF E-Plan
-  v1.59 · 08.09.2026
+  v1.60 · 08.09.2026
 
   Änderungsliste
   v1.0  Stufe 1: DWG einlesen, Plan dauerhaft ablegen, mehrere Pläne
@@ -424,6 +424,25 @@
         Zeile. Die Abgangsgruppen tragen dafür jetzt eine Kennung wie
         die RCD-Gruppen; vorhandene Typen bekommen sie beim Öffnen
         still nachgetragen.
+  v1.60 Die Liste ist die Reihenfolge. Bisher standen die direkten
+        Abgänge immer oben, vor allen RCD-Gruppen – ein Abgang, den man
+        aus der letzten Gruppe herausschieben wollte, sass dort fest,
+        weil der Pfeil nach unten keinen Platz mehr fand. Jetzt darf
+        ein direkter Abgang vor, zwischen und hinter den Gruppen
+        stehen. Die Abgänge einer Gruppe bleiben zusammen, die Gruppe
+        steht dort, wo ihr erster Abgang steht. Damit ist der Zug
+        symmetrisch: der oberste Abgang eines Blocks wird nach oben
+        davor abgesetzt, der unterste nach unten dahinter – aus einer
+        Gruppe heraus auch am Ende der Liste. Die Zeile bleibt dabei in
+        ihrer Zeile stehen und verlässt nur den Kasten. Eine Gruppe
+        ohne Abgänge merkt sich ihren Platz, sonst spränge sie beim
+        Herausschieben des letzten Abgangs ans Ende. Die
+        Zwischenüberschrift "Direkt am Verteiler" entfällt, sie hätte
+        jetzt mehrfach dastehen müssen. Das Schaltbild zeichnet
+        dieselbe Folge: direkte Abgänge hängen an der
+        Hauptsammelschiene, an welcher Stelle auch immer, die Gruppen
+        zweigen wie bisher mit ihrer Untersammelschiene ab. Ebenso
+        folgen die Prüfzeilen des RCD-Protokolls dieser Folge.
 -->
 
 <!-- ====================== OFFENE BEFUNDE ==========================
@@ -1115,7 +1134,7 @@
 <script type="module">
 "use strict";
 
-const FASSUNG = "v1.59 · 08.09.2026";
+const FASSUNG = "v1.60 · 08.09.2026";
 
 /* Zugang. Ein Schild, kein Schloss – wer den Quelltext liest, kommt daran
    vorbei; es hält den ab, der die Adresse zufällig öffnet.
@@ -3308,12 +3327,15 @@ const neueKennung = (v) => v + "_" + Date.now().toString(36) + Math.random().toS
 /* Reihenfolge der Abgänge ändern. Die Nummer ist die Position in der
    Liste, sie ergibt sich also von selbst neu.
 
-   Seit v1.59 tragen die Pfeile über die Gruppengrenze. Maßgeblich ist
-   die SICHTBARE Folge: erst die direkten Abgänge, dann je RCD-Gruppe
-   deren Kopfzeile und darunter ihre Abgänge. Verschoben wird um genau
-   einen Platz in dieser Folge. Trifft der Zug dabei auf eine
-   Kopfzeile, wechselt der Abgang die Gruppe – nach oben ans Ende des
-   Abschnitts darüber, nach unten an den Anfang der Gruppe darunter.
+   Seit v1.60 ist die Liste die Reihenfolge, ohne feste Abschnitte: ein
+   direkter Abgang darf vor, zwischen und hinter den RCD-Gruppen
+   stehen. Die Abgänge einer Gruppe bleiben zusammen, die Gruppe steht
+   dort, wo ihr erster Abgang steht.
+
+   Damit ist der Zug symmetrisch: ▲ am oberen Rand eines Blocks setzt
+   die Zeile darüber ab, ▼ am unteren darunter – aus einer Gruppe
+   heraus auch dann, wenn sie ganz unten steht. Vorher blieb eine Zeile
+   in der letzten Gruppe gefangen, weil ▼ dort keinen Platz mehr fand.
 
    Die beiden Ansichten führen dieselben Formen: der Verteiler
    UV.abgaenge/UV.rcds, die Ausstattung TYP.gruppen/TYP.rcds. Die
@@ -3325,87 +3347,192 @@ let sortModus = false;
 const gruppeVon = (a, rcds) =>
   (a.rcd && rcds.some(r => r.id === a.rcd)) ? a.rcd : null;
 
+const inGruppe = (liste, rcds, id) => liste.filter(a => gruppeVon(a, rcds) === id);
+
+/* Eine Gruppe ohne Abgänge hat keinen Platz, den ihre Mitglieder
+   vorgeben. Sie merkt sich deshalb, wo sie stand – sonst spränge sie
+   ans Ende, sobald ihr letzter Abgang herausgeschoben wird. */
+function merkePlaetze(liste, rcds){
+  for (const r of rcds){
+    const i = liste.findIndex(a => gruppeVon(a, rcds) === r.id);
+    if (i >= 0) r.leerPlatz = i;
+  }
+}
+
 function sichtFolge(liste, rcds){
   const folge = [];
-  liste.filter(a => gruppeVon(a, rcds) === null)
-       .forEach(a => folge.push({ art:"abgang", a, rcd:null }));
-  for (const r of rcds){
-    folge.push({ art:"kopf", r });
-    liste.filter(a => gruppeVon(a, rcds) === r.id)
-         .forEach(a => folge.push({ art:"abgang", a, rcd:r.id }));
+  const gesetzt = new Set();
+  const leer = rcds.filter(r => !liste.some(a => gruppeVon(a, rcds) === r.id));
+  const leereBei = (i) => {
+    for (const r of leer){
+      if (gesetzt.has(r.id)) continue;
+      if (Math.min(r.leerPlatz ?? liste.length, liste.length) === i){
+        folge.push({ art:"kopf", r });
+        gesetzt.add(r.id);
+      }
+    }
+  };
+  for (let i = 0; i < liste.length; i++){
+    leereBei(i);
+    const a = liste[i], g = gruppeVon(a, rcds);
+    if (g && !gesetzt.has(g)){
+      folge.push({ art:"kopf", r: rcds.find(x => x.id === g) });
+      gesetzt.add(g);
+    }
+    folge.push({ art:"abgang", a, rcd:g });
   }
+  leereBei(liste.length);
+  for (const r of leer) if (!gesetzt.has(r.id)) folge.push({ art:"kopf", r });
   return folge;
 }
 
-/* Bringt die Liste in die sichtbare Folge. Danach ist die Position im
-   Feld dieselbe wie die Position auf dem Schirm – und damit stimmen
-   die Nummern, die Schaltbild und Beschriftung tragen. */
-function folgeOrdnen(liste, rcds){
-  const neu = liste.filter(a => gruppeVon(a, rcds) === null);
-  for (const r of rcds) neu.push(...liste.filter(a => gruppeVon(a, rcds) === r.id));
-  liste.length = 0;
-  neu.forEach(a => liste.push(a));
+/* Die Folge als Blöcke: ein Block ist entweder eine RCD-Gruppe mit
+   ihren Abgängen oder eine Strecke direkter Abgänge. So zeichnen die
+   Ansichten und das Schaltbild dasselbe. */
+function bloecke(liste, rcds){
+  const raus = [];
+  for (const e of sichtFolge(liste, rcds)){
+    if (e.art === "kopf"){ raus.push({ r:e.r, abgaenge:[] }); continue; }
+    const letzt = raus[raus.length - 1];
+    if (e.rcd && letzt && letzt.r && letzt.r.id === e.rcd) letzt.abgaenge.push(e.a);
+    else if (!e.rcd && letzt && !letzt.r) letzt.abgaenge.push(e.a);
+    else raus.push({ r:null, abgaenge:[e.a] });
+  }
+  return raus;
 }
 
-const kannAbgangZiehen = (liste, rcds, a, richtung) => {
-  const folge = sichtFolge(liste, rcds);
-  const i = folge.findIndex(e => e.art === "abgang" && e.a === a);
-  const k = i + richtung;
-  return i >= 0 && k >= 0 && k < folge.length;
-};
+/* Bringt die Liste in die sichtbare Folge: die Abgänge einer Gruppe
+   rücken zusammen, die Blöcke behalten die Folge ihres ersten
+   Auftretens. Danach ist die Position im Feld dieselbe wie die auf dem
+   Schirm – und damit stimmen die Nummern, die Schaltbild und
+   Beschriftung tragen. */
+function folgeOrdnen(liste, rcds){
+  const neu = [], erledigt = new Set();
+  for (const a of liste){
+    const g = gruppeVon(a, rcds);
+    if (g === null){ neu.push(a); continue; }
+    if (erledigt.has(g)) continue;
+    erledigt.add(g);
+    inGruppe(liste, rcds, g).forEach(x => neu.push(x));
+  }
+  liste.length = 0;
+  neu.forEach(a => liste.push(a));
+  merkePlaetze(liste, rcds);
+}
 
-/* Setzt den Abgang in eine Gruppe und an deren Rand. Ist die Gruppe
-   leer, hängt er hinten an – die Zeichnung filtert ohnehin, und der
-   nächste folgeOrdnen rückt alles an seinen Platz. */
-function abgangEinordnen(liste, rcds, a, gruppe, wohin){
+/* Aus der Gruppe heraus: der Abgang wird direkt und setzt sich
+   unmittelbar vor oder hinter den Block, aus dem er kommt. Er bleibt
+   dadurch in derselben Zeile stehen und verlässt nur den Kasten. */
+function gruppeVerlassen(liste, rcds, a, richtung){
+  const g = gruppeVon(a, rcds);
+  const r = rcds.find(x => x.id === g) || null;
+  const i = liste.indexOf(a);
+  liste.splice(i, 1);
+  a.rcd = null;
+  const rest = inGruppe(liste, rcds, g);
+  let p;
+  if (rest.length){
+    p = richtung < 0 ? liste.indexOf(rest[0]) : liste.indexOf(rest[rest.length - 1]) + 1;
+  } else {
+    p = Math.min(Math.max(i, 0), liste.length);
+  }
+  liste.splice(p, 0, a);
+  if (!rest.length && r) r.leerPlatz = richtung < 0 ? p + 1 : p;
+}
+
+/* In eine Gruppe hinein, an deren Rand. Ist sie leer, kommt der Abgang
+   an den Platz, den sie sich gemerkt hat. */
+function gruppeBetreten(liste, rcds, a, gruppe, wohin){
   const i = liste.indexOf(a);
   if (i >= 0) liste.splice(i, 1);
   a.rcd = gruppe;
-  const platz = [];
-  liste.forEach((x, k) => { if (gruppeVon(x, rcds) === gruppe) platz.push(k); });
-  if (!platz.length) liste.push(a);
-  else if (wohin === "anfang") liste.splice(platz[0], 0, a);
-  else liste.splice(platz[platz.length - 1] + 1, 0, a);
+  const mit = [];
+  liste.forEach((x, k) => { if (gruppeVon(x, rcds) === gruppe) mit.push(k); });
+  if (!mit.length){
+    const r = rcds.find(x => x.id === gruppe);
+    liste.splice(Math.min(r && r.leerPlatz != null ? r.leerPlatz : liste.length, liste.length), 0, a);
+  }
+  else if (wohin === "anfang") liste.splice(mit[0], 0, a);
+  else liste.splice(mit[mit.length - 1] + 1, 0, a);
 }
+
+/* Nach unten geht es auch am Ende der Liste weiter, solange der Abgang
+   noch in einer Gruppe steckt – das ist der Zug, der ihn löst. */
+const kannAbgangZiehen = (liste, rcds, a, richtung) => {
+  const folge = sichtFolge(liste, rcds);
+  const i = folge.findIndex(e => e.art === "abgang" && e.a === a);
+  if (i < 0) return false;
+  const k = i + richtung;
+  if (k >= 0 && k < folge.length) return true;
+  return gruppeVon(a, rcds) !== null;
+};
 
 function abgangSchritt(liste, rcds, a, richtung){
   const folge = sichtFolge(liste, rcds);
   const i = folge.findIndex(e => e.art === "abgang" && e.a === a);
+  if (i < 0) return false;
+  const eigen = gruppeVon(a, rcds);
   const k = i + richtung;
-  if (i < 0 || k < 0 || k >= folge.length) return false;
+
+  /* Am Rand der ganzen Liste: nur noch das Lösen aus der Gruppe. */
+  if (k < 0 || k >= folge.length){
+    if (eigen === null) return false;
+    gruppeVerlassen(liste, rcds, a, richtung);
+    folgeOrdnen(liste, rcds);
+    return true;
+  }
+
   const ziel = folge[k];
 
-  /* Nachbar im selben Abschnitt: schlichter Tausch. Zwischen zwei
-     Gruppen steht immer eine Kopfzeile, ein Abgang als Nachbar gehört
-     also zwangsläufig zum selben Abschnitt. */
-  if (ziel.art === "abgang"){
+  /* Nachbar im selben Block: schlichter Tausch. */
+  if (ziel.art === "abgang" && ziel.rcd === eigen){
     const p = liste.indexOf(a), q = liste.indexOf(ziel.a);
     liste[p] = ziel.a; liste[q] = a;
     folgeOrdnen(liste, rcds);
     return true;
   }
 
-  /* Kopfzeile getroffen. Nach oben ist es immer die eigene: der Abgang
-     verlässt seine Gruppe und setzt sich ans Ende des Abschnitts
-     davor. Nach unten ist es die der nächsten Gruppe, dort geht er
-     nach vorn. */
-  if (richtung < 0){
-    const v = rcds.indexOf(ziel.r) - 1;
-    abgangEinordnen(liste, rcds, a, v >= 0 ? rcds[v].id : null, "ende");
-  } else {
-    abgangEinordnen(liste, rcds, a, ziel.r.id, "anfang");
+  /* Steht der Abgang in einer Gruppe, ist der nächste Schritt immer
+     das Verlassen – erst danach kann er weiterwandern. */
+  if (eigen !== null){
+    gruppeVerlassen(liste, rcds, a, richtung);
+    folgeOrdnen(liste, rcds);
+    return true;
   }
+
+  /* Ein direkter Abgang tritt in die Gruppe ein, auf die er trifft. */
+  const gruppe = ziel.art === "kopf" ? ziel.r.id : ziel.rcd;
+  if (!gruppe) return false;
+  gruppeBetreten(liste, rcds, a, gruppe, richtung < 0 ? "ende" : "anfang");
   folgeOrdnen(liste, rcds);
   return true;
 }
 
-/* Eine RCD-Gruppe tauscht mit der nächsten. Ihre Abgänge hängen an der
-   Kennung und wandern von selbst mit; der Abschnitt der direkten
-   Abgänge bleibt immer oben. */
+/* Eine RCD-Gruppe zieht als Ganzes: sie tauscht mit dem Nachbarn in der
+   Folge – einem einzelnen direkten Abgang oder einer ganzen Gruppe. */
+function kannRcdZiehen(liste, rcds, r, richtung){
+  const folge = sichtFolge(liste, rcds);
+  const i = folge.findIndex(e => e.art === "kopf" && e.r === r);
+  if (i < 0) return false;
+  if (richtung < 0) return i > 0;
+  return i + inGruppe(liste, rcds, r.id).length + 1 < folge.length;
+}
+
 function rcdSchritt(liste, rcds, r, richtung){
-  const i = rcds.indexOf(r), k = i + richtung;
-  if (i < 0 || k < 0 || k >= rcds.length) return false;
-  rcds[i] = rcds[k]; rcds[k] = r;
+  const eigen = inGruppe(liste, rcds, r.id);
+  if (!eigen.length){
+    const p = Math.max(0, Math.min(liste.length, (r.leerPlatz || 0) + richtung));
+    if (p === r.leerPlatz) return false;
+    r.leerPlatz = p;
+    return true;
+  }
+  const s = liste.indexOf(eigen[0]), n = eigen.length;
+  const j = richtung > 0 ? s + n : s - 1;
+  if (j < 0 || j >= liste.length) return false;
+  const nachbar = gruppeVon(liste[j], rcds);
+  const m = nachbar === null ? 1 : inGruppe(liste, rcds, nachbar).length;
+  const block = liste.splice(s, n);
+  liste.splice(richtung > 0 ? s + m : s - m, 0, ...block);
   folgeOrdnen(liste, rcds);
   return true;
 }
@@ -3526,31 +3653,29 @@ function uvZeichnen(){
     }));
   };
 
-  const direkt = UV.abgaenge.filter(a => gruppeVon(a, UV.rcds) === null);
-  if (UV.rcds.length) unterschrift(ziel, "Direkt am Verteiler");
-  if (!direkt.length && !UV.rcds.length) platzhalterIn(ziel, "Noch keine Abgänge angelegt.");
-  direkt.forEach(a => abgangZeile(ziel, a));
-  if (!sortModus) zuKnopf(ziel, "Abgänge", () => abgaengeHinzufuegen(null));
+  const liste = bloecke(UV.abgaenge, UV.rcds);
+  if (!UV.abgaenge.length && !UV.rcds.length) platzhalterIn(ziel, "Noch keine Abgänge angelegt.");
 
-  for (const r of UV.rcds){
-    const dahinter = UV.abgaenge.filter(a => gruppeVon(a, UV.rcds) === r.id);
-    const i = UV.rcds.indexOf(r);
+  for (const bl of liste){
+    if (!bl.r){ bl.abgaenge.forEach(a => abgangZeile(ziel, a)); continue; }
+    const i = UV.rcds.indexOf(bl.r);
     ziel.appendChild(zeile({
-      oben: r.name,
-      unten: kettenText(r),
-      beiKlick: () => rcdBearbeiten(r),
+      oben: bl.r.name,
+      unten: kettenText(bl.r),
+      beiKlick: () => rcdBearbeiten(bl.r),
       sortier: sortModus ? {
-        auf: i > 0,
-        ab:  i < UV.rcds.length - 1,
-        beiAuf: () => uvRcdVerschieben(r, -1),
-        beiAb:  () => uvRcdVerschieben(r, +1),
+        auf: kannRcdZiehen(UV.abgaenge, UV.rcds, bl.r, -1),
+        ab:  kannRcdZiehen(UV.abgaenge, UV.rcds, bl.r, +1),
+        beiAuf: () => uvRcdVerschieben(bl.r, -1),
+        beiAb:  () => uvRcdVerschieben(bl.r, +1),
       } : null,
     }));
     const kasten = gruppenKasten(ziel);
-    if (!dahinter.length) platzhalterIn(kasten, "Noch nichts hinter dieser Gruppe.");
-    dahinter.forEach(a => abgangZeile(kasten, a));
-    if (!sortModus) zuKnopf(kasten, "Abgänge", () => abgaengeHinzufuegen(r.id));
+    if (!bl.abgaenge.length) platzhalterIn(kasten, "Noch nichts hinter dieser Gruppe.");
+    bl.abgaenge.forEach(a => abgangZeile(kasten, a));
+    if (!sortModus) zuKnopf(kasten, "Abgänge", () => abgaengeHinzufuegen(bl.r.id));
   }
+  if (!sortModus) zuKnopf(ziel, "Abgänge", () => abgaengeHinzufuegen(null));
 
   if (!sortModus){
     knopfIn(ziel, "RCD-Gruppe hinzufügen", rcdHinzufuegen, "leer").style.marginTop = "10px";
@@ -4499,31 +4624,28 @@ function typZeichnen(){
     rk.style.marginBottom = "10px";
   }
 
-  const direkt = t.gruppen.filter(g => gruppeVon(g, t.rcds) === null);
-  if (t.rcds.length) unterschrift(ziel, "Direkt am Anschluss");
-  if (!direkt.length && !t.rcds.length) platzhalterIn(ziel, "Noch keine Abgänge angelegt.");
-  direkt.forEach(g => gruppenZeile(ziel, g));
-  if (!typSort) zuKnopf(ziel, "Abgänge", () => typGruppeNeu(null));
+  const liste = bloecke(t.gruppen, t.rcds);
+  if (!t.gruppen.length && !t.rcds.length) platzhalterIn(ziel, "Noch keine Abgänge angelegt.");
 
-  for (const r of t.rcds){
-    const dahinter = t.gruppen.filter(g => gruppeVon(g, t.rcds) === r.id);
-    const i = t.rcds.indexOf(r);
+  for (const bl of liste){
+    if (!bl.r){ bl.abgaenge.forEach(g => gruppenZeile(ziel, g)); continue; }
     ziel.appendChild(zeile({
-      oben: r.name,
-      unten: kettenText(r),
-      beiKlick: async () => { await typRcd(t, r); await bestandSpeichern(BESTAND); typZeichnen(); },
+      oben: bl.r.name,
+      unten: kettenText(bl.r),
+      beiKlick: async () => { await typRcd(t, bl.r); await bestandSpeichern(BESTAND); typZeichnen(); },
       sortier: typSort ? {
-        auf: i > 0,
-        ab:  i < t.rcds.length - 1,
-        beiAuf: () => typRcdVerschieben(r, -1),
-        beiAb:  () => typRcdVerschieben(r, +1),
+        auf: kannRcdZiehen(t.gruppen, t.rcds, bl.r, -1),
+        ab:  kannRcdZiehen(t.gruppen, t.rcds, bl.r, +1),
+        beiAuf: () => typRcdVerschieben(bl.r, -1),
+        beiAb:  () => typRcdVerschieben(bl.r, +1),
       } : null,
     }));
     const kasten = gruppenKasten(ziel);
-    if (!dahinter.length) platzhalterIn(kasten, "Noch nichts hinter dieser Gruppe.");
-    dahinter.forEach(g => gruppenZeile(kasten, g));
-    if (!typSort) zuKnopf(kasten, "Abgänge", () => typGruppeNeu(r.id));
+    if (!bl.abgaenge.length) platzhalterIn(kasten, "Noch nichts hinter dieser Gruppe.");
+    bl.abgaenge.forEach(g => gruppenZeile(kasten, g));
+    if (!typSort) zuKnopf(kasten, "Abgänge", () => typGruppeNeu(bl.r.id));
   }
+  if (!typSort) zuKnopf(ziel, "Abgänge", () => typGruppeNeu(null));
 
   if (typSort) return;
   knopfIn(ziel, "RCD-Gruppe hinzufügen", async () => {
@@ -4717,21 +4839,15 @@ const filsZeileAus = (t, g, nr, i) => {
    Abgänge, dann je RCD-Gruppe deren Zeile und dahinter ihre FI/LS. */
 function pruefzeilenAusTyp(t){
   const nummern = abgangsNummern(t);
-  const filsIn = (gruppe) => {
-    const raus = [];
-    for (const g of (t.gruppen || [])){
-      if (gruppeVon(g, t.rcds || []) !== gruppe) continue;
+
+  const zeilen = [];
+  for (const bl of bloecke(t.gruppen || [], t.rcds || [])){
+    if (bl.r) zeilen.push(rcdZeileAus(bl.r));
+    for (const g of bl.abgaenge){
       if (!g.sicherung || g.sicherung.art !== "FI/LS") continue;
       const start = nummern.get(g.id) || 1;
-      for (let i = 0; i < g.anzahl; i++) raus.push(filsZeileAus(t, g, start + i, i));
+      for (let i = 0; i < g.anzahl; i++) zeilen.push(filsZeileAus(t, g, start + i, i));
     }
-    return raus;
-  };
-
-  const zeilen = filsIn(null);
-  for (const r of (t.rcds || [])){
-    zeilen.push(rcdZeileAus(r));
-    filsIn(r.id).forEach(z => zeilen.push(z));
   }
   return zeilen;
 }
@@ -5820,10 +5936,12 @@ function reiheZeichnen(teile, xVon, xBis, y, geraete, spalten, art){
 function schaltbildEinerVerteiler(v, nummerVon){
   const abg = v.abgaenge || [];
   const rcds = v.rcds || [];
-  const gruppen = rcds.map(r => ({ rcd:r, abgaenge: abg.filter(a => a.rcd === r.id) }))
-                      .filter(g => g.abgaenge.length);
-  const inGruppe = new Set(gruppen.map(g => g.rcd.id));
-  const direkt = abg.filter(a => !a.rcd || !inGruppe.has(a.rcd));
+  /* Dieselbe Folge wie in der Verteileransicht: direkte Abgänge dürfen
+     vor, zwischen und hinter den Gruppen hängen. Leere Gruppen werden
+     nicht gezeichnet, sie brächten nur einen Stich ins Leere. */
+  const folge = bloecke(abg, rcds).filter(b => b.abgaenge.length);
+  const gruppen = folge.filter(b => b.r).map(b => ({ rcd:b.r, abgaenge:b.abgaenge }));
+  const direkt = folge.filter(b => !b.r).reduce((s, b) => s.concat(b.abgaenge), []);
 
   /* Wie lang ist die längste Kette in jedem Bereich? Danach richten sich
      die Spalten, damit gleichartige Geräte untereinander stehen. Ohne
@@ -5868,9 +5986,12 @@ function schaltbildEinerVerteiler(v, nummerVon){
     y += Y_ZEILE;
   };
 
-  for (const a of direkt){ abgangZeichnen(a, X_SCHIENE, spDirekt); letzteSchiene = y - Y_ZEILE; }
-
-  for (const g of gruppen){
+  for (const bl of folge){
+    if (!bl.r){
+      for (const a of bl.abgaenge){ abgangZeichnen(a, X_SCHIENE, spDirekt); letzteSchiene = y - Y_ZEILE; }
+      continue;
+    }
+    const g = { rcd: bl.r, abgaenge: bl.abgaenge };
     const yStich = y;
     const kt = kette(g.rcd);
     const sp = spStich.slice(spStich.length - Math.max(1, kt.length));
