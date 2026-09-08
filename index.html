@@ -2,7 +2,7 @@
 <html lang="de">
 <!--
   SF E-Plan
-  v1.60 · 08.09.2026
+  v1.62 · 08.09.2026
 
   Änderungsliste
   v1.0  Stufe 1: DWG einlesen, Plan dauerhaft ablegen, mehrere Pläne
@@ -443,6 +443,32 @@
         Hauptsammelschiene, an welcher Stelle auch immer, die Gruppen
         zweigen wie bisher mit ihrer Untersammelschiene ab. Ebenso
         folgen die Prüfzeilen des RCD-Protokolls dieser Folge.
+  v1.61 Die Abgangsnummer wird selbst vergeben. Bisher war sie die
+        Position in der Liste und lief beim Sortieren mit; jetzt ist
+        sie ein eigenes Feld und Freitext, also auch "Q1" oder "3a".
+        Verschieben ändert sie nicht mehr. Am Bestandstyp bekommt eine
+        Abgangsgruppe eine Startnummer, aus der die Nummern der
+        einzelnen Abgänge entstehen; dasselbe Feld gibt es beim Anlegen
+        mehrerer Abgänge im Plan. Hochgezählt wird nur, was aus lauter
+        Ziffern besteht - bei allem anderen ist die Fortsetzung nicht
+        eindeutig, dort bekommt nur der erste Abgang die Nummer.
+        Führende Nullen bleiben erhalten, 01 wird zu 02. Das Fenster
+        zeigt die Vorschau. Vorbelegt wird beim ersten Öffnen mit den
+        Nummern, die bis v1.60 aus der Position kamen - der
+        Ausgangszustand bleibt derselbe. Doppelte Nummern sind erlaubt
+        und werden nur gekennzeichnet, Lücken ebenso. Ein leeres Feld
+        bleibt leer, auch im Schaltbild, in der Suche und im Protokoll.
+  v1.62 Der Bildschirm der RCD-Prüfung sprang beim Eintragen der
+        Messwerte, wenn das Feld weiter unten stand. Ursache war die
+        Bewertungszeile unter den Feldern: sie wuchs beim Tippen von
+        einer auf drei Zeilen und schrumpfte wieder, und am Ende der
+        Liste klemmte der Bildlauf dabei am unteren Rand und schob
+        alles nach oben. Die Zeile hat jetzt eine feste Höhe von einer
+        Zeile; ist der Text länger, wird er abgeschnitten. Welcher Wert
+        außerhalb liegt, zeigt ohnehin die rote Umrandung des Feldes.
+        Zusätzlich wird der Bildlauf nachgeführt, falls sich doch
+        einmal etwas in der Höhe ändert - das Feld, in das gerade
+        getippt wird, bleibt dann stehen, wo es steht.
 -->
 
 <!-- ====================== OFFENE BEFUNDE ==========================
@@ -808,6 +834,7 @@
     padding:12px 14px;margin-bottom:8px;background:var(--grund);
   }
   .zeile:active{background:var(--flaeche)}
+  .zeile .nr.doppelt{color:var(--warn);border-color:var(--warn)}
   .zeile .nr{
     flex:0 0 auto;min-width:30px;height:30px;padding:0 6px;border-radius:9px;
     background:var(--akzent-hell);color:var(--akzent);font-weight:700;font-size:13px;
@@ -875,7 +902,12 @@
   .messfeld input:focus{outline:none;border-color:var(--akzent)}
   .messfeld input.aus{border-color:var(--warn);color:var(--warn)}
   .messfeld .einheit{width:24px;flex:0 0 auto;font-size:14px;color:var(--ink-leise)}
-  .wertung{font-size:13px;margin:-2px 2px 16px}
+  /* Eine Zeile, immer. Sie ändert sich bei jedem Anschlag, und würde
+     sie dabei umbrechen, verschöbe sich alles darunter – am Ende der
+     Liste klemmt der Bildlauf dann und schiebt das Feld aus dem Bild. */
+  .wertung{font-size:13px;margin:-2px 2px 16px;
+    min-height:1.35em;line-height:1.35;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .wertung.io{color:var(--akzent)}
   .wertung.nio{color:var(--warn)}
   .wertung.offen{color:var(--ink-leise)}
@@ -1134,7 +1166,7 @@
 <script type="module">
 "use strict";
 
-const FASSUNG = "v1.60 · 08.09.2026";
+const FASSUNG = "v1.62 · 08.09.2026";
 
 /* Zugang. Ein Schild, kein Schloss – wer den Quelltext liest, kommt daran
    vorbei; es hält den ab, der die Adresse zufällig öffnet.
@@ -2276,8 +2308,8 @@ function verbraucherZeichnen(r, dpr){
     ctx.setLineDash([]);
 
     if (beschriften){
-      const nr = (v.abgaenge.indexOf(a) + 1);
-      const t = (b.name || "Verbraucher") + " · " + v.name + "/" + nr;
+      const nr = String(a.nr || "").trim();
+      const t = (b.name || "Verbraucher") + " · " + v.name + (nr ? "/" + nr : "");
       ctx.font = "500 11px -apple-system,Segoe UI,Helvetica,Arial,sans-serif";
       ctx.textBaseline = "middle";
       ctx.lineWidth = 3; ctx.strokeStyle = "#ffffff";
@@ -2922,12 +2954,13 @@ function hervorhebungWaehlen(wahl){
     const weg = kette.slice().reverse().map((k, i) => {
       if (i === 0) return k.name;
       const eltern = kette[kette.length - i];
-      const q = k.quelle && (eltern.abgaenge || []).findIndex(a => a.id === k.quelle.abgangId);
-      return (q >= 0 ? "Abg. " + (q+1) + " → " : "") + k.name;
+      const q = k.quelle && (eltern.abgaenge || []).find(a => a.id === k.quelle.abgangId);
+      const qn = q && String(q.nr || "").trim();
+      return (qn ? "Abg. " + qn + " → " : "") + k.name;
     }).join(" · ");
-    const nr = daten.kopf.abgaenge.indexOf(daten.abgang) + 1;
+    const nr = String(daten.abgang.nr || "").trim();
     st.textContent = (daten.abgang.verbraucher.name || "Verbraucher") +
-                     " ← " + weg + " · Abg. " + nr;
+                     " ← " + weg + (nr ? " · Abg. " + nr : "");
   } else {
     const mobile = daten.knoten.filter(k => k.art === "mobil" && k.id !== daten.kopf.id).length;
     const teile = [];
@@ -3556,6 +3589,12 @@ function uvOeffnen(v){
     UV.zuleitung = { herkunft:"", sicherung:{ art:"gG", kennlinie:null, strom:63, ma:null } };
   if (!UV.rcds) UV.rcds = [];
   if (!UV.abgaenge) UV.abgaenge = [];
+  /* Vor v1.61 war die Nummer die Position. Beim ersten Öffnen wird
+     genau die eingetragen – der Ausgangszustand bleibt derselbe, und
+     ab dann steht sie fest. */
+  let nachgetragen = false;
+  UV.abgaenge.forEach((a, i) => { if (a.nr == null){ a.nr = String(i + 1); nachgetragen = true; } });
+  if (nachgetragen) merken();
   $("uvTitel").textContent = UV.name + (UV.art === "mobil" ? " · mobil" : "");
   uvZeichnen();
   schirmZeigen("schirmUV");
@@ -3570,7 +3609,7 @@ const merken = () => planSpeichern(PLAN);
 
 /* Mit sortier wird die Zeile zur Ablage für zwei Pfeilknöpfe und
    selbst nicht mehr anklickbar – geschachtelte Knöpfe gäbe es sonst. */
-function zeile({ nr, oben, unten, beiKlick, sortier }){
+function zeile({ nr, nrWarn, oben, unten, beiKlick, sortier }){
   const b = document.createElement(sortier ? "div" : "button");
   b.className = "zeile";
   b.innerHTML = (nr !== undefined ? '<span class="nr"></span>' : '') +
@@ -3580,7 +3619,11 @@ function zeile({ nr, oben, unten, beiKlick, sortier }){
                     '<button class="pfeilknopf" data-weg="auf" aria-label="Nach oben">&#9650;</button>' +
                     '<button class="pfeilknopf" data-weg="ab" aria-label="Nach unten">&#9660;</button></span>'
                   : '<span class="pfeil">›</span>');
-  if (nr !== undefined) b.querySelector(".nr").textContent = nr;
+  if (nr !== undefined){
+    const k = b.querySelector(".nr");
+    k.textContent = nr;
+    if (nrWarn) k.classList.add("doppelt");
+  }
   b.querySelector(".oben").textContent = oben;
   b.querySelector(".unten").textContent = unten || "";
   if (sortier){
@@ -3637,10 +3680,11 @@ function uvZeichnen(){
 
   /* Eine Abgangszeile behält ihre Nummer aus der Gesamtliste: daran
      hängen Schaltbild und Beschriftung. */
+  const doppelt = doppelteNummern(UV.abgaenge);
   const abgangZeile = (wohin, a) => {
-    const i = UV.abgaenge.indexOf(a);
     wohin.appendChild(zeile({
-      nr: i + 1,
+      nr: abgangNr(a),
+      nrWarn: doppelt.has(abgangNr(a)),
       oben: (a.name || a.art) + " — " + verbraucherText(a),
       unten: [a.art, kettenText(a)].filter(Boolean).join(" · "),
       beiKlick: () => abgangOeffnen(a),
@@ -3942,6 +3986,8 @@ async function abgaengeHinzufuegen(rcdVorgabe){
     felder: [
       { art:"wahl", name:"art", beschriftung:"Art", optionen: ABGANGSARTEN.map(x => ({ wert:x, text:x })) },
       { art:"zahl", name:"anzahl", beschriftung:"Anzahl", wert:"1" },
+      { art:"text", name:"startNr", beschriftung:"Startnummer", wert:"",
+        platzhalter:"z. B. 5 oder Q1" },
       { art:"wahl", name:"rcd", beschriftung:"Hinter RCD",
         wert: rcdVorgabe || "", optionen: rcdOptionen() },
     ],
@@ -3956,6 +4002,7 @@ async function abgaengeHinzufuegen(rcdVorgabe){
   for (let i=0;i<anzahl;i++){
     UV.abgaenge.push({
       id: neueKennung("ab"), art: a.werte.art, name: "",
+      nr: hochzaehlen(a.werte.startNr, i),
       sicherung: JSON.parse(JSON.stringify(s)),
       rcd: a.werte.rcd || null,
     });
@@ -3982,7 +4029,42 @@ $("abZurueck").addEventListener("click", () => {
   uvZeichnen();
 });
 
-const abgangNr = (ab) => UV.abgaenge.indexOf(ab) + 1;
+/* Nummern werden seit v1.61 von Hand vergeben und sind Freitext: "5"
+   ebenso wie "Q1" oder "3a". Hochgezählt wird nur, was aus lauter
+   Ziffern besteht – bei allem anderen ist die Fortsetzung nicht
+   eindeutig, dort bekommt nur der erste Abgang die Nummer. Führende
+   Nullen bleiben erhalten: 01 wird zu 02. */
+function hochzaehlen(start, i){
+  const s = String(start == null ? "" : start).trim();
+  if (!i) return s;
+  if (!/^\d+$/.test(s)) return "";
+  return String(Number(s) + i).padStart(s.length, "0");
+}
+/* Vorschau für die Fenster, in denen eine Startnummer gesetzt wird. */
+function nummernVorschau(start, anzahl){
+  const s = String(start == null ? "" : start).trim();
+  if (!s) return "Ohne Nummer.";
+  if (anzahl <= 1) return "Nummer: " + s;
+  if (!/^\d+$/.test(s))
+    return "„" + s + "“ lässt sich nicht hochzählen – nur der erste Abgang bekommt sie, die übrigen bleiben ohne.";
+  const alle = [];
+  for (let i = 0; i < Math.min(anzahl, 4); i++) alle.push(hochzaehlen(s, i));
+  return "Nummern: " + alle.join(", ") + (anzahl > 4 ? " … " + hochzaehlen(s, anzahl - 1) : "");
+}
+
+const abgangNr = (ab) => String((ab && ab.nr) || "").trim();
+const abgangTitel = (ab) => abgangNr(ab) ? "Abgang " + abgangNr(ab) : "Abgang ohne Nummer";
+
+/* Zweimal dieselbe Nummer ist erlaubt, wird aber gekennzeichnet. */
+function doppelteNummern(liste){
+  const zaehler = new Map(), doppelt = new Set();
+  for (const a of liste){
+    const n = abgangNr(a);
+    if (!n) continue;
+    if (zaehler.has(n)) doppelt.add(n); else zaehler.set(n, 1);
+  }
+  return doppelt;
+}
 
 async function abgangGeaendert(){
   await merken();
@@ -3994,10 +4076,26 @@ function abgangSchirmZeichnen(){
   const ab = ABG;
   if (!ab) return;
   ziel.innerHTML = "";
-  $("abTitel").textContent = "Abgang " + abgangNr(ab);
+  $("abTitel").textContent = abgangTitel(ab);
 
   /* --- Abgang --- */
   const h1 = document.createElement("h2"); h1.textContent = "Abgang"; ziel.appendChild(h1);
+  ziel.appendChild(zeile({
+    oben: abgangNr(ab) || "ohne Nummer",
+    unten: "Nummer",
+    beiKlick: async () => {
+      const a = await formular({
+        titel: "Nummer",
+        text: "Freitext. Frei lassen, dann steht im Plan und im Protokoll keine Nummer.",
+        felder: [{ art:"text", name:"nr", beschriftung:"Nummer", wert:abgangNr(ab),
+                   platzhalter:"z. B. 5 oder Q1" }],
+        knoepfe: [{ text:"Übernehmen", wert:true }, { text:"Abbrechen", wert:false, art:"leer" }],
+      });
+      if (!a.wahl) return;
+      ab.nr = a.werte.nr.trim();
+      await abgangGeaendert();
+    },
+  }));
   ziel.appendChild(zeile({
     oben: ab.name || "ohne Bezeichnung",
     unten: "Bezeichnung",
@@ -4055,7 +4153,7 @@ function abgangSchirmZeichnen(){
     unten: "Vorgeschaltet",
     beiKlick: async () => {
       const s = await sicherungWaehlen(ab.vor || { art:"FI", kennlinie:null, strom:40, ma:30 },
-                                       "Vorgeschaltet vor Abgang " + abgangNr(ab));
+                                       abgangTitel(ab) + ": vorgeschaltet");
       if (!s) return;
       ab.vor = hatGeraet(s) ? s : null;
       await abgangGeaendert();
@@ -4137,14 +4235,14 @@ function abgangSchirmZeichnen(){
   }
 
   knopfIn(ziel, "Abgang löschen", async () => {
-    const nr = abgangNr(ab);
+    const nr = abgangTitel(ab);
     const b = await frage({
       titel: "Abgang löschen",
       text: ab.mobil
-        ? "Abgang " + nr + " wird entfernt. Der daran hängende mobile Verteiler wird abgehängt."
+        ? nr + " wird entfernt. Der daran hängende mobile Verteiler wird abgehängt."
         : ab.verbraucher
-          ? "Abgang " + nr + " wird entfernt, samt dem angeschlossenen Verbraucher."
-          : "Abgang " + nr + " wird entfernt.",
+          ? nr + " wird entfernt, samt dem angeschlossenen Verbraucher."
+          : nr + " wird entfernt.",
       knoepfe: [{ text:"Löschen", wert:true, art:"gefahr" }, { text:"Behalten", wert:false, art:"leer" }],
     });
     if (!b.wahl) return;
@@ -4325,12 +4423,15 @@ async function typGruppe(t, g, rcdVorgabe){
   const erlaubt = bisGroesse(t.anschluss);
   const a = await formular({
     titel: g ? "Abgänge ändern" : "Abgänge hinzufügen",
-    text: g ? sicherungText(g.sicherung) : undefined,
+    text: [g ? sicherungText(g.sicherung) : null,
+           g ? nummernVorschau(g.startNr, g.anzahl) : null].filter(Boolean).join(" · ") || undefined,
     felder: [
       { art:"wahl", name:"art", beschriftung:"Art",
         wert: g ? g.art : erlaubt[erlaubt.length - 1],
         optionen: erlaubt.map(x => ({ wert:x, text:x })) },
       { art:"zahl", name:"anzahl", beschriftung:"Anzahl", wert: g ? String(g.anzahl) : "1" },
+      { art:"text", name:"startNr", beschriftung:"Startnummer",
+        wert: g ? String(g.startNr || "") : "", platzhalter:"z. B. 5 oder Q1" },
       { art:"wahl", name:"rcd", beschriftung:"Hinter RCD",
         wert: (g ? g.rcd : rcdVorgabe) || "", optionen: typRcdOptionen(t) },
     ],
@@ -4347,10 +4448,12 @@ async function typGruppe(t, g, rcdVorgabe){
   if (!g){
     const s = await sicherungWaehlen(sicherungVorgabe(art), "Absicherung der Abgänge");
     if (!s) return;
-    t.gruppen.push({ id: neueKennung("gr"), art, anzahl, sicherung: s, rcd: a.werte.rcd || null });
+    t.gruppen.push({ id: neueKennung("gr"), art, anzahl, sicherung: s,
+                     startNr: a.werte.startNr.trim(), rcd: a.werte.rcd || null });
     return;
   }
   g.art = art; g.anzahl = anzahl; g.rcd = a.werte.rcd || null;
+  g.startNr = a.werte.startNr.trim();
   if (a.wahl === "sicherung"){
     const s = await sicherungWaehlen(g.sicherung, "Absicherung der Abgänge");
     if (s) g.sicherung = s;
@@ -4372,11 +4475,12 @@ function bestueckungAusTyp(t){
                 vor: r.vor ? JSON.parse(JSON.stringify(r.vor)) : null });
   }
   if (t.durchgeschleift && t.anschluss === "CEE 63A")
-    abgaenge.push({ id: neueKennung("ab"), art:"CEE 63A", name:"durchgeschleift",
+    abgaenge.push({ id: neueKennung("ab"), art:"CEE 63A", name:"durchgeschleift", nr:"",
                     sicherung:{ art:"ohne", kennlinie:null, strom:null, ma:null }, rcd:null });
   for (const g of (t.gruppen || []))
     for (let i = 0; i < g.anzahl; i++)
       abgaenge.push({ id: neueKennung("ab"), art:g.art, name:"",
+                      nr: hochzaehlen(g.startNr, i),
                       sicherung: JSON.parse(JSON.stringify(g.sicherung)),
                       rcd: (g.rcd && neueId[g.rcd]) || null });
   return { rcds, abgaenge };
@@ -4741,6 +4845,13 @@ function typVorbereiten(t){
   if (!t.geraete) t.geraete = [];
   for (const g of t.gruppen) if (!g.id) g.id = neueKennung("gr");
   folgeOrdnen(t.gruppen, t.rcds);
+  /* Startnummern nachtragen: vorbelegt wird mit der Nummer, die bis
+     v1.60 aus der Position kam. Der Ausgangszustand bleibt derselbe. */
+  let nr = (t.durchgeschleift && t.anschluss === "CEE 63A") ? 1 : 0;
+  for (const g of t.gruppen){
+    if (g.startNr == null) g.startNr = String(nr + 1);
+    nr += g.anzahl;
+  }
 }
 
 /* ---- Zahlen und Datum ---- */
@@ -4807,16 +4918,9 @@ const nenndatenText = (z) =>
    LS, gG oder ohne Absicherung bekommen keine.
 
    Die Nummer einer FI/LS-Zeile ist die Nummer, die derselbe Abgang
-   auch im Plan und im Schaltbild trägt: gezählt wird wie in
-   bestueckungAusTyp, also der durchgeschleifte Abgang zuerst, danach
-   die Gruppen in ihrer Reihenfolge, jede so oft wie ihre Anzahl. */
-function abgangsNummern(t){
-  const start = new Map();
-  let nr = (t.durchgeschleift && t.anschluss === "CEE 63A") ? 1 : 0;
-  for (const g of (t.gruppen || [])){ start.set(g.id, nr + 1); nr += g.anzahl; }
-  return start;
-}
-
+   auch im Plan und im Schaltbild trägt: sie kommt aus der Startnummer
+   der Gruppe und wird wie dort hochgezählt. Ohne Startnummer bleibt
+   die Zeile ohne Nummer und trägt nur ihre Art. */
 const rcdZeileAus = (r) => ({
   art: "rcd", quelle: r.id, name: r.name,
   geraet: sicherungText(r.sicherung),
@@ -4824,11 +4928,13 @@ const rcdZeileAus = (r) => ({
   ia: null, ta: null, taste: false,
 });
 
-const filsZeileAus = (t, g, nr, i) => {
+const filsZeileAus = (t, g, i) => {
   const r = g.rcd ? (t.rcds || []).find(x => x.id === g.rcd) : null;
+  const nr = hochzaehlen(g.startNr, i);
   return {
     art: "fils", quelle: g.id + "#" + i,
-    name: "Abgang " + nr + " · " + g.art + (r ? " · hinter " + r.name : ""),
+    name: (nr ? "Abgang " + nr : "Abgang ohne Nummer") +
+          " · " + g.art + (r ? " · hinter " + r.name : ""),
     geraet: sicherungText(g.sicherung),
     ma: g.sicherung ? g.sicherung.ma : null,
     ia: null, ta: null, taste: false,
@@ -4838,15 +4944,12 @@ const filsZeileAus = (t, g, nr, i) => {
 /* Die Folge des Blattes ist die der Ausstattung: erst die direkten
    Abgänge, dann je RCD-Gruppe deren Zeile und dahinter ihre FI/LS. */
 function pruefzeilenAusTyp(t){
-  const nummern = abgangsNummern(t);
-
   const zeilen = [];
   for (const bl of bloecke(t.gruppen || [], t.rcds || [])){
     if (bl.r) zeilen.push(rcdZeileAus(bl.r));
     for (const g of bl.abgaenge){
       if (!g.sicherung || g.sicherung.art !== "FI/LS") continue;
-      const start = nummern.get(g.id) || 1;
-      for (let i = 0; i < g.anzahl; i++) zeilen.push(filsZeileAus(t, g, start + i, i));
+      for (let i = 0; i < g.anzahl; i++) zeilen.push(filsZeileAus(t, g, i));
     }
   }
   return zeilen;
@@ -5094,8 +5197,17 @@ function rcdBlock(ziel, z){
   ziel.appendChild(w);
 
   /* Beim Tippen wird nur diese eine Zeile neu bewertet, nicht der
-     ganze Bildschirm – ein Neuaufbau nähme dem Feld den Fokus. */
+     ganze Bildschirm – ein Neuaufbau nähme dem Feld den Fokus.
+
+     Sollte sich trotz fester Zeilenhöhe doch etwas in der Höhe ändern,
+     wird der Bildlauf um denselben Betrag nachgeführt: das Feld, in
+     das gerade getippt wird, bleibt dann stehen, wo es steht. */
   function frisch(){
+    const feld = (document.activeElement === eIa || document.activeElement === eTa)
+      ? document.activeElement : null;
+    const rumpf = ziel.parentElement;
+    const vorher = feld ? feld.getBoundingClientRect().top : 0;
+
     const gr = iaGrenzen(z.ma);
     eIa.classList.toggle("aus", z.ia != null && !!gr && (z.ia < gr.min || z.ia > gr.max));
     eTa.classList.toggle("aus", z.ta != null && z.ta > T_GRENZE);
@@ -5105,6 +5217,11 @@ function rcdBlock(ziel, z){
                   : wert === "io"    ? "i.O."
                   : "n.i.O. · " + maengelText(z);
     gesamtSetzen();
+
+    if (feld && rumpf){
+      const nachher = feld.getBoundingClientRect().top;
+      if (nachher !== vorher) rumpf.scrollTop += nachher - vorher;
+    }
   }
   eIa.addEventListener("input", () => { z.ia = messZahl(eIa.value); frisch(); });
   eTa.addEventListener("input", () => { z.ta = messZahl(eTa.value); frisch(); });
@@ -5561,10 +5678,10 @@ function suchen(roh){
       const name = b.name || "Verbraucher";
       const g = Math.min(trefferGuete(name, q), trefferGuete(bez, q));
       if (g === 99) continue;
-      const nr = v.abgaenge.indexOf(ab) + 1;
+      const nr = String(ab.nr || "").trim();
       treffer.push({
         guete: g, marke: "V", titel: name,
-        unter: [bez || "eigener Ort", v.name + " · Abg. " + nr,
+        unter: [bez || "eigener Ort", v.name + (nr ? " · Abg. " + nr : ""),
                 hatOrt(b) ? null : "ohne Ort"].filter(Boolean).join(" · "),
         ziel: hatOrt(b) ? b : (hatOrt(v) ? v : null),
         wahl: { art:"verbraucher", uvId:v.id, abgangId:ab.id },
@@ -5964,7 +6081,7 @@ function schaltbildEinerVerteiler(v, nummerVon){
 
   /* Ein Abgang, waagerecht */
   const abgangZeichnen = (a, xVon, spalten, punkt) => {
-    const nr = abg.indexOf(a) + 1;
+    const nr = String(a.nr || "").trim();
     const ziel = a.mobil ? verteilerNach(a.mobil) : null;
     const b = a.verbraucher;
     const geraete = kette(a);
@@ -5975,7 +6092,8 @@ function schaltbildEinerVerteiler(v, nummerVon){
     /* Aderzahl der Leitung, hinter dem letzten Schutzorgan – nur wenn
        dort noch Platz ist. */
     if (X_ADER - sp[sp.length - 1] >= 66) teile.push(strich(X_ADER, y, aderzahl(a.art)));
-    teile.push(T(xVon + 10, y - 10, "Abg. " + nr + (a.name ? " · " + a.name : ""), 10.5, "start"));
+    const beschriftung = [nr ? "Abg. " + nr : "", a.name || ""].filter(Boolean).join(" · ");
+    if (beschriftung) teile.push(T(xVon + 10, y - 10, beschriftung, 10.5, "start"));
 
     const kastenOben = a.art || "Abgang";
     const kastenUnten = ziel ? ziel.name + " · Blatt " + nummerVon(ziel.id)
