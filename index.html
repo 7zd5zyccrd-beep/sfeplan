@@ -2,7 +2,7 @@
 <html lang="de">
 <!--
   SF E-Plan
-  v1.63 · 11.09.2026
+  v1.64 · 11.09.2026
 
   Änderungsliste
   v1.0  Stufe 1: DWG einlesen, Plan dauerhaft ablegen, mehrere Pläne
@@ -479,6 +479,13 @@
         einem Anschluss ohne diese Möglichkeit entfällt er wie bisher
         nach Rückfrage. Verteiler, die schon im Plan stehen, bleiben
         unverändert – die Ausstattung wirkt beim Anschließen.
+  v1.64 gG gibt es jetzt auch mit 16 A und 32 A, die Nennstromauswahl
+        reicht damit von 16 bis 500 A. Die Liste gilt überall, wo gG
+        gewählt wird: Zuleitung, Vorsicherung einer Gruppe, Abgang.
+        Nebenwirkung beim Wechsel der Art auf gG: ein Nennstrom, den gG
+        nicht kennt, wird wie bisher durch den kleinsten der Liste
+        ersetzt – das ist jetzt 16 A statt 35 A. Aus LS 16 oder LS 32
+        wird dabei gG 16 A bzw. gG 32 A.
 -->
 
 <!-- ====================== OFFENE BEFUNDE ==========================
@@ -1176,7 +1183,7 @@
 <script type="module">
 "use strict";
 
-const FASSUNG = "v1.63 · 11.09.2026";
+const FASSUNG = "v1.64 · 11.09.2026";
 
 /* Zugang. Ein Schild, kein Schloss – wer den Quelltext liest, kommt daran
    vorbei; es hält den ab, der die Adresse zufällig öffnet.
@@ -1332,7 +1339,7 @@ const SICHERUNG = {
   "LS":    { kennlinien:["B","C"], stroeme:[10,13,16,20,25,32,40,50,63], ma:null },
   "FI/LS": { kennlinien:["B","C"], stroeme:[10,13,16,20,25,32,40,50,63], ma:[30] },
   "FI":    { kennlinien:null,      stroeme:[25,40,63,125],               ma:[30,300] },
-  "gG":    { kennlinien:null,      stroeme:[35,50,63,80,100,125,160,200,250,315,400,500], ma:null },
+  "gG":    { kennlinien:null,      stroeme:[16,32,35,50,63,80,100,125,160,200,250,315,400,500], ma:null },
   "ohne":  { kennlinien:null,      stroeme:null,                         ma:null },
 };
 const ABGANGSARTEN = ["Schuko","CEE 16A","CEE 32A","CEE 63A","CEE 125A"];
