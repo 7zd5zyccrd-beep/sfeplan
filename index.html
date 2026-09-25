@@ -2,7 +2,7 @@
 <html lang="de">
 <!--
   SF E-Plan
-  v1.65 · 25.09.2026
+  v1.66 · 25.09.2026
 
   Änderungsliste
   v1.0  Stufe 1: DWG einlesen, Plan dauerhaft ablegen, mehrere Pläne
@@ -495,6 +495,9 @@
         haben auf dem Papier eine feste Größe. Kein Netz nötig, keine
         fremde Bibliothek. Teilen und Herunterladen laufen für PDF und
         Schaltbild jetzt über dieselbe Funktion (dateiWeitergeben).
+  v1.66 Neu-laden-Knopf oben rechts in der Kopfzeile des Startschirms.
+        Er holt die Seite am Zwischenspeicher vorbei, eine neue Fassung
+        kommt damit sofort an. Pläne und Einstellungen bleiben erhalten.
 -->
 
 <!-- ====================== OFFENE BEFUNDE ==========================
@@ -1004,7 +1007,7 @@
   <div class="kopf">
     <span class="platz"></span>
     <span class="titel">SF E-Plan</span>
-    <span class="platz"></span>
+    <button id="knopfNeuladen" aria-label="Neu laden" title="Neu laden"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg></button>
   </div>
   <div class="rumpf"><div class="innen">
     <div id="planListe"></div>
@@ -1192,7 +1195,7 @@
 <script type="module">
 "use strict";
 
-const FASSUNG = "v1.65 · 25.09.2026";
+const FASSUNG = "v1.66 · 25.09.2026";
 
 /* Zugang. Ein Schild, kein Schloss – wer den Quelltext liest, kommt daran
    vorbei; es hält den ab, der die Adresse zufällig öffnet.
@@ -7419,6 +7422,16 @@ $("knopfSperren").addEventListener("click", async () => {
   });
   if (!a.wahl) return;
   try { localStorage.removeItem(ZUGANG_SCHLUESSEL); } catch (e) {}
+  location.reload();
+});
+
+/* ---- Neu laden ----
+   Holt die Seite am Zwischenspeicher vorbei, damit eine neue Fassung
+   sofort ankommt. Pläne und Einstellungen liegen auf dem Gerät und
+   bleiben erhalten. */
+$("knopfNeuladen").addEventListener("click", async () => {
+  arbeitAn("Lade neu …");
+  try { await fetch(location.href, { cache:"reload" }); } catch (e) {}
   location.reload();
 });
 </script>
