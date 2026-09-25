@@ -2,7 +2,7 @@
 <html lang="de">
 <!--
   SF E-Plan
-  v1.64 · 11.09.2026
+  v1.65 · 25.09.2026
 
   Änderungsliste
   v1.0  Stufe 1: DWG einlesen, Plan dauerhaft ablegen, mehrere Pläne
@@ -486,6 +486,15 @@
         nicht kennt, wird wie bisher durch den kleinsten der Liste
         ersetzt – das ist jetzt 16 A statt 35 A. Aus LS 16 oder LS 32
         wird dabei gG 16 A bzw. gG 32 A.
+  v1.65 Plan als PDF (Zahnrad → Als PDF ausgeben). Geschrieben wird
+        ein Vektor-PDF mit den aktuellen Einstellungen: Originalfarben
+        oder Schwarz-Weiß, Texte an oder aus, festgelegter Ausschnitt,
+        Standortfarben, Verteiler und Verbraucher. Bereich wahlweise
+        das, was gerade zu sehen ist, oder der ganze Ausschnitt bzw.
+        Plan; Papier A4 bis A0, die Lage folgt dem Bereich. Symbole
+        haben auf dem Papier eine feste Größe. Kein Netz nötig, keine
+        fremde Bibliothek. Teilen und Herunterladen laufen für PDF und
+        Schaltbild jetzt über dieselbe Funktion (dateiWeitergeben).
 -->
 
 <!-- ====================== OFFENE BEFUNDE ==========================
@@ -1183,7 +1192,7 @@
 <script type="module">
 "use strict";
 
-const FASSUNG = "v1.64 · 11.09.2026";
+const FASSUNG = "v1.65 · 25.09.2026";
 
 /* Zugang. Ein Schild, kein Schloss – wer den Quelltext liest, kommt daran
    vorbei; es hält den ab, der die Adresse zufällig öffnet.
@@ -5840,6 +5849,9 @@ function menueOeffnen(){
   eintrag("Verteiler setzen", "Antippen setzt, Ziehen verschiebt",
     () => { menueSchliessen(); verteilerModusStarten(); });
 
+  eintrag("Als PDF ausgeben", "Plan mit den aktuellen Einstellungen",
+    () => { menueSchliessen(); pdfAusgeben(); });
+
   eintrag("Ausschnitt festlegen", AUSSCHNITT ? "Ein Ausschnitt ist gesetzt" : "Zurzeit ganzer Plan",
     () => { menueSchliessen(); zuschnittStarten(); });
 
@@ -5862,6 +5874,302 @@ $("knopfMenue").addEventListener("click", menueOeffnen);
 $("menueSchleier").addEventListener("click", (e) => {
   if (e.target === $("menueSchleier")) menueSchliessen();
 });
+
+/* ================================================================== */
+/* 11a · Plan als PDF                                                  */
+/* ================================================================== */
+
+/* Der Plan wird als Vektor-PDF geschrieben, ohne fremde Bibliothek und
+   damit auch ohne Netz. Es gilt, was gerade eingestellt ist: Farbe oder
+   Schwarz-Weiß, Texte an oder aus, der festgelegte Ausschnitt, die
+   Standortfarben, Verteiler und Verbraucher. Nicht mit hinein kommen
+   Auswahl, Hervorhebung und Puls – die gehören zur Bedienung.
+
+   Bereich ist entweder das, was auf dem Schirm zu sehen ist, oder der
+   ganze Ausschnitt (ohne Ausschnitt der ganze Plan). Das Blatt dreht
+   sich nach dem Seitenverhältnis des Bereichs. Symbole und ihre
+   Beschriftung haben eine feste Größe auf dem Papier: ein Bildpunkt der
+   Ansicht wird zu 0,75 pt, wie es CSS auch rechnet. */
+
+const PAPIER = {
+  A4:[595.28, 841.89], A3:[841.89, 1190.55], A2:[1190.55, 1683.78],
+  A1:[1683.78, 2383.94], A0:[2383.94, 3370.39],
+};
+const PDF_RAND = 28.35;   // 10 mm
+const PDF_FUSS = 16;      // Zeile für Planname und Datum
+const PX_PT    = 0.75;    // ein Bildpunkt der Ansicht auf dem Papier
+const PDF_LINIE = 0.3;    // Linienstärke der Zeichnung in pt
+let pdfWahl = { bereich:"sicht", papier:"A3" };
+
+/* Zahlen kurz halten: zwei Nachkommastellen sind 0,007 mm. */
+const pz = (v) => { const r = Math.round(v*100)/100; return r === 0 ? "0" : String(r); };
+const pdfFarbe = (css) => {
+  const n = parseInt(css.slice(1), 16);
+  return [(n>>16)&255, (n>>8)&255, n&255].map(v => +(v/255).toFixed(3)).join(" ");
+};
+
+/* Helvetica kennt WinAnsi. Latin-1 deckt sich damit ab 0xA0, dazwischen
+   liegen die typografischen Zeichen. Was fehlt, wird zum Fragezeichen.
+   Alles außerhalb von ASCII geht oktal hinein, der Inhalt bleibt ASCII. */
+const WINANSI = { "€":0x80, "‚":0x82, "„":0x84, "…":0x85, "‘":0x91, "’":0x92,
+                  "“":0x93, "”":0x94, "•":0x95, "–":0x96, "—":0x97, "™":0x99 };
+function pdfText(s){
+  let aus = "";
+  for (const z of String(s)){
+    let c = z.codePointAt(0);
+    if (c > 255) c = WINANSI[z] ?? 63;
+    else if (c >= 0x80 && c < 0xA0) c = 63;
+    if (c === 40 || c === 41 || c === 92) aus += "\\" + z;
+    else if (c < 32 || c > 126) aus += "\\" + c.toString(8).padStart(3, "0");
+    else aus += z;
+  }
+  return "(" + aus + ")";
+}
+
+/* Kreis aus vier Bézierbögen. */
+function pdfKreis(x, y, r){
+  const k = r * 0.5523;
+  return pz(x+r) + " " + pz(y) + " m " +
+    pz(x+r) + " " + pz(y+k) + " " + pz(x+k) + " " + pz(y+r) + " " + pz(x) + " " + pz(y+r) + " c " +
+    pz(x-k) + " " + pz(y+r) + " " + pz(x-r) + " " + pz(y+k) + " " + pz(x-r) + " " + pz(y) + " c " +
+    pz(x-r) + " " + pz(y-k) + " " + pz(x-k) + " " + pz(y-r) + " " + pz(x) + " " + pz(y-r) + " c " +
+    pz(x+k) + " " + pz(y-r) + " " + pz(x+r) + " " + pz(y-k) + " " + pz(x+r) + " " + pz(y) + " c h\n";
+}
+function pdfRundeck(x, y, b, h, r){
+  const k = r * 0.4477;   // 1 - 0,5523
+  return pz(x+r) + " " + pz(y) + " m " + pz(x+b-r) + " " + pz(y) + " l " +
+    pz(x+b-k) + " " + pz(y) + " " + pz(x+b) + " " + pz(y+k) + " " + pz(x+b) + " " + pz(y+r) + " c " +
+    pz(x+b) + " " + pz(y+h-r) + " l " +
+    pz(x+b) + " " + pz(y+h-k) + " " + pz(x+b-k) + " " + pz(y+h) + " " + pz(x+b-r) + " " + pz(y+h) + " c " +
+    pz(x+r) + " " + pz(y+h) + " l " +
+    pz(x+k) + " " + pz(y+h) + " " + pz(x) + " " + pz(y+h-k) + " " + pz(x) + " " + pz(y+h-r) + " c " +
+    pz(x) + " " + pz(y+r) + " l " +
+    pz(x) + " " + pz(y+k) + " " + pz(x+k) + " " + pz(y) + " " + pz(x+r) + " " + pz(y) + " c h\n";
+}
+/* Text mit weißem Hof, wie auf dem Schirm. Senkrecht mittig gesetzt. */
+function pdfHofText(x, y, s, font, groesse, farbe, hof){
+  const t = "/" + font + " " + pz(groesse) + " Tf " + pz(x) + " " + pz(y - groesse*0.35) + " Td " + pdfText(s) + " Tj ET\n";
+  return "q 1 1 1 RG 1 1 1 rg " + pz(hof) + " w 1 j 2 Tr BT " + t + "Q\n" +
+         "q " + pdfFarbe(farbe) + " rg 0 Tr BT " + t + "Q\n";
+}
+
+/* Bereich in Plankoordinaten (Nullpunkt schon abgezogen). */
+function pdfBereich(art){
+  if (art === "sicht"){
+    const r = $("leinwandRahmen").getBoundingClientRect();
+    return { x0:-sicht.x/sicht.m, x1:(r.width-sicht.x)/sicht.m,
+             y0:(sicht.y-r.height)/sicht.m, y1:sicht.y/sicht.m };
+  }
+  return ausschnittFuerPlan() || PLAN.rand;
+}
+
+function pdfInhalt(bereich, papier, art){
+  const bw0 = Math.max(1e-6, bereich.x1-bereich.x0), bh0 = Math.max(1e-6, bereich.y1-bereich.y0);
+  let [W, H] = PAPIER[papier];
+  if (bw0 > bh0) [W, H] = [H, W];
+  const fx = PDF_RAND, fy = PDF_RAND + PDF_FUSS;
+  const fw = W - 2*PDF_RAND, fh = H - 2*PDF_RAND - PDF_FUSS;
+  const m = Math.min(fw/bw0, fh/bh0);
+  const ox = fx + (fw - bw0*m)/2 - bereich.x0*m;
+  const oy = fy + (fh - bh0*m)/2 - bereich.y0*m;
+  const X = (x) => ox + x*m, Y = (y) => oy + y*m;
+  const rx0 = X(bereich.x0), ry0 = Y(bereich.y0), rw = bw0*m, rh = bh0*m;
+  const rahmen = pz(rx0) + " " + pz(ry0) + " " + pz(rw) + " " + pz(rh) + " re";
+
+  const aus = [];
+  aus.push("1 J 1 j\n");
+  aus.push("q " + rahmen + " W n\n");
+
+  /* Zeichnung, zugeschnitten auf den festgelegten Ausschnitt. */
+  const schnitt = ausschnittFuerPlan();
+  aus.push("q\n");
+  if (schnitt)
+    aus.push(pz(X(schnitt.x0)) + " " + pz(Y(schnitt.y0)) + " " +
+             pz((schnitt.x1-schnitt.x0)*m) + " " + pz((schnitt.y1-schnitt.y0)*m) + " re W n\n");
+
+  const p = PLAN, striche = new Map(), flaechen = new Map();
+  const hole = (karte, f) => { let b = karte.get(f); if (!b){ b = []; karte.set(f, b); } return b; };
+  const k = p.kasten;
+  for (let i=0;i<p.formen.length;i++){
+    const form = p.formen[i];
+    if (form === FORM_SCHEIBE) continue;
+    if (k[i*4] > bereich.x1 || k[i*4+2] < bereich.x0 || k[i*4+1] > bereich.y1 || k[i*4+3] < bereich.y0) continue;
+    const a = p.starts[i], b = p.starts[i+1];
+    if (form === FORM_KREIS){
+      hole(striche, p.farben[i]).push(pdfKreis(X(p.punkte[a*2]), Y(p.punkte[a*2+1]), Math.max(p.radien[i]*m, 0.01)));
+      continue;
+    }
+    if (b - a < 2) continue;
+    let s = pz(X(p.punkte[a*2])) + " " + pz(Y(p.punkte[a*2+1])) + " m";
+    for (let n=a+1;n<b;n++) s += " " + pz(X(p.punkte[n*2])) + " " + pz(Y(p.punkte[n*2+1])) + " l";
+    hole(form === FORM_FLAECHE ? flaechen : striche, p.farben[i]).push(form === FORM_FLAECHE ? s + " h\n" : s + "\n");
+  }
+  for (const [farbe, teile] of flaechen){
+    aus.push(pdfFarbe(flaechenFarbe(farbe)) + " rg\n");
+    for (let i=0;i<teile.length;i+=2000) aus.push(teile.slice(i, i+2000).join("") + "f\n");
+  }
+  aus.push(pz(PDF_LINIE) + " w\n");
+  for (const [farbe, teile] of striche){
+    aus.push(pdfFarbe(strichFarbe(farbe)) + " RG\n");
+    for (let i=0;i<teile.length;i+=2000) aus.push(teile.slice(i, i+2000).join("") + "S\n");
+  }
+  aus.push("Q\n");
+
+  /* Standorte, mindestens so groß wie auf dem Schirm. */
+  const drin = (x, y) => !schnitt || (x >= schnitt.x0 && x <= schnitt.x1 && y >= schnitt.y0 && y <= schnitt.y1);
+  for (const s of standorteAktiv(p)){
+    if (!drin(s.x, s.y)) continue;
+    if (s.x < bereich.x0 - s.r || s.x > bereich.x1 + s.r || s.y < bereich.y0 - s.r || s.y > bereich.y1 + s.r) continue;
+    aus.push(pdfFarbe(sichtbar(s.farbe)) + " rg " +
+             pdfKreis(X(s.x), Y(s.y), Math.max(s.r*m, STANDORT_MIN*PX_PT)) + "f\n");
+  }
+
+  /* Texte aus der Zeichnung. Winziges bleibt weg, wie auf dem Schirm. */
+  if (anzeige.text){
+    for (const t of p.texte){
+      if (!drin(t.x, t.y)) continue;
+      const h = t.h * m;
+      if (h < 1) continue;
+      const x = X(t.x), y = Y(t.y);
+      if (x < rx0 - 50*h || x > rx0 + rw + 5*h || y < ry0 - 5*h || y > ry0 + rh + 5*h) continue;
+      const c = Math.cos(t.dreh || 0), sn = Math.sin(t.dreh || 0);
+      const farbe = anzeige.farbe ? sichtbar(t.farbe) : "#1B2430";
+      aus.push(pdfFarbe(farbe) + " rg BT /F1 1 Tf " + pz(h*c) + " " + pz(h*sn) + " " + pz(-h*sn) + " " + pz(h*c) +
+               " " + pz(x) + " " + pz(y) + " Tm " + pdfText(t.s) + " Tj ET\n");
+    }
+  }
+
+  /* Verbraucher und Verteiler in fester Größe auf dem Papier. */
+  const n = p.nullpunkt;
+  const beschriften = m / PX_PT >= SCHRIFT_AB;
+  for (const { v, a, b } of alleVerbraucher()){
+    const x = X(b.x-n.x), y = Y(b.y-n.y);
+    if (x < rx0 - 20 || x > rx0 + rw + 20 || y < ry0 - 20 || y > ry0 + rh + 20) continue;
+    const ring = pdfKreis(x, y, 8*PX_PT);
+    aus.push("1 1 1 RG " + pz(4*PX_PT) + " w " + ring + "S\n");
+    aus.push(pdfFarbe("#1B2430") + " RG " + pz(2*PX_PT) + " w " +
+             (b.ortVeraltet ? "[" + pz(3*PX_PT) + " " + pz(3*PX_PT) + "] 0 d " : "") + ring + "S [] 0 d\n");
+    if (beschriften){
+      const nr = String(a.nr || "").trim();
+      aus.push(pdfHofText(x + 12*PX_PT, y - 10*PX_PT, (b.name || "Verbraucher") + " · " + v.name + (nr ? "/" + nr : ""),
+                          "F1", 11*PX_PT, "#1B2430", 3*PX_PT));
+    }
+  }
+  const seite = VERTEILER_SEITE * PX_PT, halb = seite/2;
+  for (const v of verteilerListe()){
+    const x = X(v.x-n.x), y = Y(v.y-n.y);
+    if (x < rx0 - 20 || x > rx0 + rw + 20 || y < ry0 - 20 || y > ry0 + rh + 20) continue;
+    const mobil = v.art === "mobil";
+    aus.push(pdfFarbe(mobil ? "#ffffff" : "#17726B") + " rg " +
+             pdfFarbe(mobil ? "#17726B" : "#ffffff") + " RG " +
+             pz((mobil ? 2.5 : 2)*PX_PT) + " w " +
+             pdfRundeck(x-halb, y-halb, seite, seite, 5*PX_PT) + "B\n");
+    aus.push(pdfHofText(x + halb + 5*PX_PT, y, v.name, "F2", 12*PX_PT, "#1B2430", 3*PX_PT));
+  }
+  aus.push("Q\n");
+
+  /* Rahmen und Fußzeile. */
+  aus.push("0.6 0.6 0.6 RG 0.5 w " + rahmen + " S\n");
+  const fuss = p.name + " · " + datumText(Date.now()) +
+               (art === "sicht" ? " · Bildausschnitt" : schnitt ? " · Ausschnitt" : "") +
+               " · " + papier + " · " + (anzeige.farbe ? "Originalfarben" : "Schwarz-Weiß");
+  aus.push(pdfFarbe("#1B2430") + " rg BT /F1 8 Tf " + pz(PDF_RAND) + " " + pz(PDF_RAND + 3) + " Td " + pdfText(fuss) + " Tj ET\n");
+
+  return { inhalt: aus.join(""), breite: W, hoehe: H };
+}
+
+async function flatePacken(bytes){
+  if (typeof CompressionStream === "undefined") return null;
+  try{
+    const strom = new Blob([bytes]).stream().pipeThrough(new CompressionStream("deflate"));
+    return new Uint8Array(await new Response(strom).arrayBuffer());
+  }catch(e){ return null; }
+}
+
+async function pdfBauen(inhalt, breite, hoehe, titel){
+  const kodierer = new TextEncoder();
+  const roh = kodierer.encode(inhalt);
+  const gepackt = await flatePacken(roh);
+  const strom = gepackt || roh;
+
+  const teile = [], versatz = [];
+  let laenge = 0;
+  const schreib = (x) => { const b = typeof x === "string" ? kodierer.encode(x) : x; teile.push(b); laenge += b.length; };
+  const objekt = (nr, text) => { versatz[nr] = laenge; schreib(nr + " 0 obj\n" + text + "\nendobj\n"); };
+
+  schreib("%PDF-1.4\n");
+  schreib(new Uint8Array([37, 0xE2, 0xE3, 0xCF, 0xD3, 10]));
+  objekt(1, "<< /Type /Catalog /Pages 2 0 R >>");
+  objekt(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+  objekt(3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " + pz(breite) + " " + pz(hoehe) + "]" +
+            " /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> /Contents 4 0 R >>");
+  versatz[4] = laenge;
+  schreib("4 0 obj\n<< /Length " + strom.length + (gepackt ? " /Filter /FlateDecode" : "") + " >>\nstream\n");
+  schreib(strom);
+  schreib("\nendstream\nendobj\n");
+  objekt(5, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");
+  objekt(6, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
+  objekt(7, "<< /Title " + pdfText(titel) + " /Producer " + pdfText("SF E-Plan " + FASSUNG) + " >>");
+
+  const xref = laenge;
+  let tabelle = "xref\n0 8\n0000000000 65535 f \n";
+  for (let i=1;i<=7;i++) tabelle += String(versatz[i]).padStart(10, "0") + " 00000 n \n";
+  schreib(tabelle + "trailer\n<< /Size 8 /Root 1 0 R /Info 7 0 R >>\nstartxref\n" + xref + "\n%%EOF\n");
+  return new Blob(teile, { type:"application/pdf" });
+}
+
+/* Teilen, wo es geht, sonst herunterladen. Muss direkt aus einem Tipp
+   heraus laufen, sonst verweigert iOS das Teilen. */
+async function dateiWeitergeben(datei){
+  try{
+    if (navigator.canShare && navigator.canShare({ files:[datei] })){
+      await navigator.share({ files:[datei] });   // ohne Titel, sonst kommt ein Textobjekt mit
+    } else {
+      const url = URL.createObjectURL(datei);
+      const a = document.createElement("a");
+      a.href = url; a.download = datei.name; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    }
+  }catch(e){
+    /* iOS meldet beim Teilen an einen Kurzbefehl fälschlich einen Abbruch. */
+  }
+}
+
+async function pdfAusgeben(){
+  if (!PLAN) return;
+  const a = await formular({
+    titel: "Plan als PDF",
+    text: "Mit den aktuellen Einstellungen: " + (anzeige.farbe ? "Originalfarben" : "Schwarz-Weiß") +
+          ", Texte " + (anzeige.text ? "an" : "aus") + (AUSSCHNITT ? ", zugeschnitten auf den Ausschnitt" : "") + ".",
+    felder: [
+      { art:"wahl", name:"bereich", beschriftung:"Bereich", wert:pdfWahl.bereich, optionen:[
+        { wert:"sicht", text:"Was gerade zu sehen ist" },
+        { wert:"ganz",  text:AUSSCHNITT ? "Ganzer Ausschnitt" : "Ganzer Plan" } ] },
+      { art:"wahl", name:"papier", beschriftung:"Papierformat", wert:pdfWahl.papier,
+        optionen: Object.keys(PAPIER).map(k => ({ wert:k, text:k })) },
+    ],
+    knoepfe: [{ text:"Erstellen", wert:true }, { text:"Abbrechen", wert:false, art:"leer" }],
+  });
+  if (!a.wahl) return;
+  pdfWahl = { bereich:a.werte.bereich, papier:a.werte.papier };
+
+  let datei;
+  try{
+    arbeitAn("Schreibe PDF …");
+    await naechsterRahmen();
+    const { inhalt, breite, hoehe } = pdfInhalt(pdfBereich(pdfWahl.bereich), pdfWahl.papier, pdfWahl.bereich);
+    const name = stempelHeute() + " Plan " + PLAN.name;
+    const blob = await pdfBauen(inhalt, breite, hoehe, name);
+    datei = new File([blob], name.replace(/[\\/:*?"<>|]+/g, "_") + ".pdf", { type:"application/pdf" });
+  } finally { arbeitAus(); }
+
+  const b = await frage({
+    titel: "PDF ist fertig",
+    text: datei.name + " · " + (datei.size/1048576).toFixed(1).replace(".", ",") + " MB",
+    knoepfe: [{ text:"Weitergeben", wert:true }, { text:"Schließen", wert:false, art:"leer" }],
+  });
+  if (b.wahl) await dateiWeitergeben(datei);
+}
 
 /* ================================================================== */
 /* 12 · Prinzipschaltbild                                              */
@@ -6312,19 +6620,7 @@ $("sbZurueck").addEventListener("click", () => {
 $("sbTeilen").addEventListener("click", async () => {
   if (!weitergabeStand) return;
   const name = weitergabeStand.name + (EMPFAENGER ? "__" + EMPFAENGER : "") + ".html";
-  const datei = new File([weitergabeStand.html], name, { type:"text/html" });
-  try{
-    if (navigator.canShare && navigator.canShare({ files:[datei] })){
-      await navigator.share({ files:[datei] });   // ohne Titel, sonst kommt ein Textobjekt mit
-    } else {
-      const url = URL.createObjectURL(datei);
-      const a = document.createElement("a");
-      a.href = url; a.download = name; a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 4000);
-    }
-  }catch(e){
-    /* iOS meldet beim Teilen an einen Kurzbefehl fälschlich einen Abbruch. */
-  }
+  await dateiWeitergeben(new File([weitergabeStand.html], name, { type:"text/html" }));
 });
 
 /* ================================================================== */
